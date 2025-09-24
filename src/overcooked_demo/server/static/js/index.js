@@ -108,6 +108,8 @@ socket.on('waiting', function(data) {
     // Hide join/create buttons (since already waiting)
     $('#join').hide();
     $('#join').attr("disabled", true);
+    $('#survey').hide();
+    $('#survey').attr("disabled", true);
     $('#create').hide();
     $('#create').attr("disabled", true);
 
@@ -179,6 +181,8 @@ socket.on('start_game', function(data) {
     $('#waiting').hide();
     $('#join').hide();
     $('#join').attr("disabled", true);
+    $('#survey').hide();
+    $('#survey').attr("disabled", true);
     $('#create').hide();
     $('#create').attr("disabled", true);
     $("#instructions").hide();
@@ -250,9 +254,12 @@ socket.on('end_game', function(data) {
     $('#game-title').hide();
     $('#game-over').show();
 
-    // Re-enable create/join for next game
+    
+
     $("#join").show();
     $('#join').attr("disabled", false);
+    $("#survey").show();
+    $('#survey').attr("disabled", false);
     $("#create").show();
     $('#create').attr("disabled", false);
     $("#instructions").show();
@@ -365,18 +372,107 @@ socket.on("thought", function(data) {
     }
 });
 
-$(document).ready(function() {
-    // Initially, disable thought display
+$(document).ready(function () {
+    /* ---------------- Thought toggle ---------------- */
     window.showThoughts = false;
-    // When the user toggles the checkbox, update the flag
-    $("#toggle-thoughts").on("change", function() {
-        window.showThoughts = this.checked;
-        if (!this.checked) {
-            $("#thoughts").text(""); // clear if disabled
-        }
+    $("#toggle-thoughts").on("change", function () {
+      window.showThoughts = this.checked;
+      if (!this.checked) {
+        $("#thoughts").text(""); // clear if disabled
+      }
     });
-});
-
+  
+    /* ---------------- Chat widget wiring ---------------- */
+    const $panel = $("#chat-panel");
+    const $toggle = $("#chat-toggle");
+    const $close = $("#chat-close");
+    const $body = $("#chat-body");
+    const $input = $("#chat-input");
+    const $send = $("#chat-send");
+  
+    function openChat() {
+      $panel.show();
+      $input.focus();
+    }
+    function closeChat() {
+      $panel.hide();
+    }
+    function toggleChat() {
+      $panel.is(":visible") ? closeChat() : openChat();
+    }
+  
+    // Toggle handlers
+    $toggle.on("click", function (e) {
+      e.preventDefault();
+      toggleChat();
+    });
+    $close.on("click", function (e) {
+      e.preventDefault();
+      closeChat();
+    });
+  
+    // Escape to close
+    $(document).on("keydown.chat", function (e) {
+      if (e.key === "Escape" && $panel.is(":visible")) closeChat();
+    });
+  
+    // Simple HTML escape
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, (m) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[m]));
+    }
+  
+    // Append a line to the chat body
+    function appendLine(sender, text) {
+      const html = `<div class="chat-line"><span class="sender">${esc(sender)}:</span><span class="text"> ${esc(text)}</span></div>`;
+      $body.append(html);
+      // Scroll to bottom
+      $body.scrollTop($body[0].scrollHeight);
+    }
+  
+    // Send a chat message
+    function sendChat() {
+      const text = $input.val().trim();
+      if (!text) return;
+      socket.emit("chat:send", { text: text });
+      // rely on server broadcast to append (single source of truth)
+      $input.val("");
+    }
+  
+    // Click send
+    $send.on("click", function (e) {
+      e.preventDefault();
+      sendChat();
+    });
+  
+    // Enter to send
+    $input.on("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendChat();
+      }
+    });
+  
+    // Receive broadcast messages
+    socket.on("chat:message", function (data) {
+      appendLine(data.sender || "unknown", data.text || "");
+    });
+  
+    // (Optional) Auto-open chat when the game ends:
+    // socket.on("end_game", function () { openChat(); });
+  
+    // Debug: ensure elements exist
+    if (!$("#chat-toggle").length || !$("#chat-panel").length) {
+      console.warn("[chat] Chat HTML not found in DOM.");
+    }
+  });
+  
+  
 /* -----------------------------------------------------------------------------
  * Utility Functions
  * -----------------------------------------------------------------------------

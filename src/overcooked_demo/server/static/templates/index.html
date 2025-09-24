@@ -3,131 +3,215 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    
-    <!-- 
-      Using Bootstrap 4 via CDN for basic layout & components.
-      Integrity/crossorigin attributes help with security/subresource integrity.
-    -->
+    <title>Overcooked Symbolic AI</title>
+    <base href="/">
+
     <link rel="stylesheet"
           href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWrnQq4sF86dIHNDz0W1"
           crossorigin="anonymous">
-    
-    <!-- Page Title -->
-    <title>Overcooked Symbolic AI</title>
-
-    <!-- jQuery, D3, Babel, Popper, Bootstrap JS, Socket.IO, Phaser -->
-    <script src="static/lib/jquery-min.js" type="text/javascript"></script>
-    <script src="static/lib/d3.v3.min.js" type="text/javascript"></script>
-    <script src="static/lib/babel.min.js" type="text/javascript"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
-            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
             crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
-            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
             crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
     <script src="//cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
-    
-    <!-- Our Overcooked Demo Graphics + Index logic -->
-    <script src="static/js/graphics.js" type="text/javascript"></script>
-    <script src="static/js/index.js" type="text/javascript"></script>
 
-    <!-- Custom Styles: Bootstrap + Our style.css -->
-    <link rel="stylesheet" href="static/css/bootstrap.min.css" type="text/css" />
-    <link rel="stylesheet" href="static/css/style.css" type="text/css" />
+    <script src="/static/lib/jquery-min.js" type="text/javascript"></script>
+    <script src="/static/lib/d3.v3.min.js" type="text/javascript"></script>
+    <script src="/static/lib/babel.min.js" type="text/javascript"></script>
+    <script src="/static/js/graphics.js" type="text/javascript"></script>
+    <script src="/static/js/index.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="/static/css/style.css" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+
+    <style>
+      :root { --bg:#0f172a; --text:#e2e8f0; --muted:#94a3b8; --accent1:#22d3ee; --accent2:#a78bfa; }
+      html, body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; min-height: 100%; }
+      .page-wrap { max-width: 1100px; margin: 28px auto 48px; padding: 0 14px; }
+      h1.title { text-align: center; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 18px; }
+      .config-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+      label { color: var(--muted); font-weight: 600; }
+      .btn-cta { background: linear-gradient(90deg, var(--accent1), var(--accent2)); border: 0; border-radius: 12px; padding: 10px 16px; font-weight: 700; color: #081223; }
+      #waiting { background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; padding: 14px; color: var(--muted); margin-bottom: 16px; }
+      #overcooked-container { text-align: center; }
+      .game-frame { display: inline-block; background: #ffffff; border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); margin-bottom: 12px; }
+      #control button { margin: 0 6px; }
+      a, a:hover { color: #c7d2fe; }
+    </style>
   </head>
   <body>
-    <!-- 
-      A simple form for choosing player types, layout, etc.
-    -->
-    <div class="container my-3">
-      <h1 class="text-center">Design and Implementation of Human-AI Cooperation in a Video Game</h1>
-    </div>
-    
-    <form>
-      <div class="container mt-3">
-        <div class="row text-center">
-          <div class="form-group col-lg-3">
-            <label for="playerZero" style="color:#1E6A9E">Player 1</label>
-            <select class="form-control" id="playerZero" name="playerZero">
-              <option value="human">Human Keyboard Input</option>
-            </select>
-          </div>
-          <div class="form-group col-lg-3">
-            <label for="playerOne" style="color:#44956B">Player 2</label>
-            <select class="form-control" id="playerOne" name="playerOne">
-              <option value="human">Symbolic AI Agent</option>
-            </select>
-          </div>
-          <div class="form-group col-lg-2">
-            <label for="layout">Layout</label>
-            <select class="form-control" id="layout" name="layout">
-              {% for layout in layouts %}
-                  <option value={{layout}}>{{layout}}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="form-group col-lg-2">
-            <label for="gameTime">Game Length (sec)</label>
-            <input type="number" id="gameTime" value="30" min="1" max="1800" name="gameTime" class="form-control">
-          </div>
-          <div class="form-group col-lg-2">
-            <!-- Additional option for data collection -->
-            <label for="dataCollection"
-                   data-toggle="tooltip"
-                   data-placement="top"
-                   title="Whether to store the trajectories of both agents that will participate in this game">
-              Collect Data?
-            </label>
-            <input type="checkbox" id="dataCollection" name="dataCollection" checked>
+    <div class="page-wrap">
+      <h1 class="title">Design and Implementation of Human-AI Cooperation in a Video Game</h1>
+
+      <form>
+        <div class="config-card">
+          <div class="row text-center">
+            <div class="form-group col-lg-3 col-md-6 mb-2">
+              <label for="playerZero" style="color:#67e8f9">Player 1</label>
+              <select class="form-control" id="playerZero" name="playerZero">
+                <option value="human">Human Keyboard Input</option>
+              </select>
+            </div>
+            <div class="form-group col-lg-3 col-md-6 mb-2">
+              <label for="playerOne" style="color:#a78bfa">Player 2</label>
+              <select class="form-control" id="playerOne" name="playerOne">
+                <option value="human">Human Keyboard Input</option>
+              </select>
+            </div>
+            <div class="form-group col-lg-2 col-md-4 mb-2">
+              <label for="layout">Layout</label>
+              <select class="form-control" id="layout" name="layout">
+                {% for layout in layouts %}
+                  <option value="{{ layout }}">{{ layout }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-lg-2 col-md-4 mb-2">
+              <label for="gameTime">Game Length (sec)</label>
+              <input type="number" id="gameTime" value="60" min="1" max="1800" name="gameTime" class="form-control">
+            </div>
+            <div class="form-group col-lg-2 col-md-4 mb-2">
+              <label for="dataCollection" title="Whether to store the trajectories of both agents that will participate in this game">
+                Collect Data?
+              </label>
+              <input type="checkbox" id="dataCollection" name="dataCollection" checked>
+            </div>
           </div>
         </div>
+      </form>
+
+      <div class="text-center mb-2">
+        <a id="instructions" href="/instructions">Instructions</a> ·
+        <a id="tutorial" href="/tutorial">Tutorial</a>
       </div>
-    </form>
 
-
-    <div id="thought-container" class="container my-3">
-      <div class="form-check">
-        <input class="form-check-input" type="checkbox" id="toggle-thoughts" />
-        <label class="form-check-label" for="toggle-thoughts">Show Thought Process</label>
+      <div id="waiting" class="text-center" style="display:none;">
+        Waiting for the other player to join…
       </div>
-      <div id="thoughts" class="border p-2 mt-2" style="min-height:50px;">
-        <!-- Thought messages -->
+
+      <div id="overcooked-container" class="text-center">
+        <h4 id="game-title" style="display:none">Game in Progress</h4>
+        <h4 id="game-over" style="display:none">Game Over</h4>
+        <div class="game-frame"><div id="overcooked"></div></div>
+        <div id="error-exit" style="display:none; color:#fecaca;">
+          Game ended unexpectedly (probably due to another user disconnecting)
+        </div>
       </div>
-    </div>
-    <!-- Links to instructions or tutorial -->
-    <h4 id="instructions" class="text-center"><a href="./instructions">Instructions</a></h4>
-    <h4 id="tutorial" class="text-center"><a href="./tutorial">Tutorial</a></h4>
 
-    <!-- if a user tries to join a game that isn't ready yet -->
-    <div id="waiting" class="text-center" style="display:none">
-      Waiting for game to be created. Please be patient...
-    </div>
-
-    <!-- The container that holds the Overcooked game once started -->
-    <div id="overcooked-container" class="text-center">
-      <h4 id="game-title" style="display:none">Game in Progress</h4>
-      <h4 id="game-over" style="display:none">Game Over</h4>
-      <div id="overcooked"></div>
-      <div id="error-exit" style="display:none">
-        Game ended unexpectedly (probably due to another user disconnecting)
+      <div id="control" class="text-center mb-3">
+        <button id="create" class="btn btn-cta">Create Game</button>
+        <button id="join" class="btn btn-outline-light">Join Existing Game</button>
+        <button id="survey" class="btn btn-outline-light" onclick="window.location.href='/post-questionnaire'">Continue Survey</button>
+        <button id="leave" style="display:none;" class="btn btn-danger">Leave</button>
       </div>
     </div>
 
-    <!-- Buttons to create/join/leave a game -->
-    <div id="control" class="text-center mb-3">
-      <button id="create" class="btn btn-primary">Create Game</button>
-      <button id="join" class="btn btn-secondary">Join Existing Game</button>
-      <button id="leave" style="display:none;" class="btn btn-danger">Leave</button>
-    </div>
-    
-    <!-- If JS is disabled, the user sees this warning -->
     <noscript>
-      <h1>Warning: Javascript seems to be disabled</h1>
-      <p>This website requires that Javascript be enabled on your browser.</p>
-      <p>Instructions for enabling Javascript in your browser can be found 
-         <a href="http://support.google.com/bin/answer.py?hl=en&answer=23852">here</a></p>
+      <div class="container">
+        <div class="alert alert-warning mt-3">
+          <strong>Warning:</strong> Javascript seems to be disabled. This website requires Javascript to work.
+        </div>
+      </div>
     </noscript>
+
+    <script type="application/json" id="server-config">
+{{ {
+  "locked_layout": locked_layout|default(None),
+  "locked_time": locked_time|default(None),
+  "auto_join": auto_join|default(False),
+  "next_url": next_url|default(None)
+}|tojson }}
+    </script>
+
+    <script>
+      (function () {
+        try {
+          const cfg = JSON.parse(document.getElementById('server-config').textContent || '{}');
+          window.LOCKED_LAYOUT = cfg.locked_layout ?? null;
+          window.LOCKED_TIME   = cfg.locked_time  ?? null;
+          window.NEXT_URL      = cfg.next_url     ?? null;
+        } catch (e) {
+          window.LOCKED_LAYOUT = null; window.LOCKED_TIME = null; window.NEXT_URL = null;
+        }
+      })();
+
+      function withSocket(fn) {
+        const start = Date.now();
+        const t = setInterval(function () {
+          if (window.socket && typeof window.socket.emit === 'function') {
+            clearInterval(t); fn(window.socket);
+          } else if (Date.now() - start > 4000) {
+            clearInterval(t); console.warn('Socket not ready');
+          }
+        }, 50);
+      }
+
+      (function hookWaitingUI() {
+        const waitEl = document.getElementById('waiting');
+        const gameWrap = document.getElementById('overcooked-container');
+        const t = setInterval(function () {
+          if (!window.socket) return;
+          clearInterval(t);
+          window.socket.on('waiting', function () {
+            waitEl.style.display = 'block';
+            gameWrap.style.display = 'none';
+          });
+          window.socket.on('start_game', function () {
+            waitEl.style.display = 'none';
+            gameWrap.style.display = 'block';
+          });
+        }, 50);
+      })();
+
+      document.addEventListener('DOMContentLoaded', function () {
+        if (window.NEXT_URL) {
+          document.getElementById('survey').onclick = function () { window.location.href = window.NEXT_URL; };
+        }
+
+        if (window.LOCKED_LAYOUT) {
+          document.getElementById('layout').value = window.LOCKED_LAYOUT;
+          document.getElementById('layout').disabled = true;
+          if (window.LOCKED_TIME) {
+            document.getElementById('gameTime').value = window.LOCKED_TIME;
+            document.getElementById('gameTime').disabled = true;
+          }
+          const cfg = document.querySelector('.config-card'); if (cfg) cfg.style.display = 'none';
+        }
+
+        if (window.jQuery) { jQuery('#create').off('click'); jQuery('#join').off('click'); }
+
+        function params() {
+          const layout = window.LOCKED_LAYOUT || (document.getElementById('layout')?.value || 'cramped_room');
+          const time   = parseInt(window.LOCKED_TIME || (document.getElementById('gameTime')?.value || 60), 10);
+          return {
+            playerZero: 'human',
+            playerOne:  'human',
+            dataCollection: 'on',
+            gameTime: time,
+            layout: layout,
+            layout_name: layout,
+            layouts: [layout]
+          };
+        }
+
+        function showWaiting() {
+          document.getElementById('waiting').style.display = 'block';
+          document.getElementById('overcooked-container').style.display = 'none';
+        }
+
+        document.getElementById('create')?.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          withSocket(function (s) { s.emit('join', { game_name: 'overcooked', create_if_not_found: true, params: params() }); });
+          showWaiting();
+        });
+
+        document.getElementById('join')?.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          withSocket(function (s) { s.emit('join', { game_name: 'overcooked', create_if_not_found: false, params: params() }); });
+          showWaiting();
+        });
+      });
+    </script>
   </body>
 </html>

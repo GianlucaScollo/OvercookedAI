@@ -1,12 +1,14 @@
 {
     "logfile" : "app.log",
-    "layouts" : ["cramped_new","cramped_room","asymmetric_advantages","coordination_ring","forced_coordination", "counter_circuit","forced_coordination_tomato","masterchef","scenario4","onlpotsingle","onlyingredient","onlyplate","onlypot","onlyserve","plateserve","platepot","potserve","ingrpot","ingplpot","ingplserve","new","plpotserve","soup_coordination","counter_circuit_o_1order", "cramped_room_tomato","forced_coordination_tomato", "cramped_corridor", "marshmallow_experiment", "long_cook_time", "forced_coordination_tomato", "asymmetric_advantages_tomato", "marshmallow_experiment_coordination", "pipeline", "you_shall_not_pass", "tutorial_3"],
+    "results_csv": "data/game_results.csv",
+    "chat_csv": "data/chat_logs.csv",
+    "layouts" : ["cramped_new","cramped_room","asymmetric_advantages","coordination_ring","forced_coordination", "counter_circuit"],
     "MAX_GAMES" : 15,
     "MAX_GAME_LENGTH" : 360,
     "MAX_FPS" : 30,
     "predefined" : {
         "experimentParams" : {
-            "layouts" : ["you_shall_not_pass"],
+            "layouts" : ["you_shall_not_pass", "cramped_new"],
             "gameTime" : 60,
             "playerZero" : "human",
             "playerOne" : "human",

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Post-Questionnaire</title>
+  <link rel="stylesheet"
+        href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0f172a;--text:#e2e8f0;--muted:#94a3b8;--a1:#22d3ee;--a2:#a78bfa;--panel:rgba(255,255,255,.06);--brd:rgba(255,255,255,.12)}
+    html,body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100%}
+    .wrap{max-width:960px;margin:28px auto 48px;padding:0 14px}
+    h1{font-weight:800;letter-spacing:-.01em;margin-bottom:6px;text-align:center}
+    p.sub{color:var(--muted);text-align:center;margin-bottom:14px}
+    .pid{background:var(--panel);border:1px solid var(--brd);border-radius:10px;padding:8px 12px;display:inline-block;margin:0 auto 12px; font-weight:600}
+    .card{background:var(--panel);border:1px solid var(--brd);border-radius:14px;padding:16px}
+    iframe{width:100%;min-height:560px;border:0;border-radius:12px;background:#fff}
+    .btn-cta{background:linear-gradient(90deg,var(--a1),var(--a2));border:0;border-radius:12px;padding:12px 18px;font-weight:700;color:#081223}
+    .footer{text-align:right;margin-top:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Post-Questionnaire</h1>
+    <p class="sub">Final feedback form. Please also enter your Participant ID at the top.</p>
+    <div class="text-center"><span id="pid" class="pid"></span></div>
+
+    <div class="card">
+      <!-- replace src with your actual post-questionnaire Form link -->
+      <iframe src="https://forms.office.com/..." allowfullscreen></iframe>
+      <div class="footer">
+        <a id="next" class="btn-cta" href="#">Continue</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const u = new URL(window.location.href);
+    const pid = u.searchParams.get('pid') || '';
+    const order = u.searchParams.get('order') || 'cramped_first';
+    document.getElementById('pid').textContent = pid ? `Participant ID: ${pid}` : '';
+
+    // Forward to finish page
+    const finish = u.searchParams.get('next') || '/finish';
+    document.getElementById('next').href = `${finish}?pid=${pid}&order=${order}`;
+  </script>
+</body>
+</html>
