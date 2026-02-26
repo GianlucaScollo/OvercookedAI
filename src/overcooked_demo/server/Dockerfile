@@ -1,4 +1,4 @@
-FROM python:3.7-buster 
+FROM python:3.9-bookworm
 
 ARG BUILD_ENV
 ARG OVERCOOKED_BRANCH
@@ -34,9 +34,9 @@ COPY ./config.json ./config.json
 
 
 # Set environment variables that will be used by app.py
-ENV HOST 0.0.0.0
-ENV PORT 5000
-ENV CONF_PATH config.json
+ENV HOST        = 0.0.0.0
+ENV PORT        = 5000
+ENV CONF_PATH   = config.json
 
 # Do the thing
 EXPOSE 5000

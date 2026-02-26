@@ -1,20 +1,22 @@
 # Design and Implementation of Human–AI Cooperation in a Video Game
 
-**Author:** Margarita H. Radeva 
+**Author:** Margarita H. Radeva & Gianluca Scollo
 
 ---
 
 ## Overview  
 This repository contains the **Overcooked-AI** benchmark environment in which a human player can team up with a Jason symbolic AI agent to prepare and serve soups under time pressure. It provides the game server, frontend UI, and Docker configurations needed to launch the kitchen simulation.
 
-> **Note:** This is one of **two** repositories required for the complete system. You will also need the [Symbolic AI Agent repo](https://github.com/margaritaradeva/SymbolicAIAgent).
+> **Note:** This is one of **two** repositories required for the complete system. You will also need the [Symbolic AI Agent repo](https://github.com/GianlucaScollo/SymbolicAIAgent.git).
 
 ---
 
 ## Links & Related Repos
 
 - **Symbolic AI Agent (Jason)**  
-  https://github.com/margaritaradeva/SymbolicAIAgent  
+  https://github.com/GianlucaScollo/SymbolicAIAgent.git  
+- **Original Overcooked-AI (core environment):**
+  https://github.com/margaritaradeva/OvercookedAI.git
 - **Original Overcooked-AI repository**  
   https://github.com/HumanCompatibleAI/overcooked_ai  
 
@@ -37,7 +39,7 @@ Make sure you have installed on your system:
 
 1. **Clone this repository**  
    ```bash
-   git clone https://github.com/margaritaradeva/OvercookedAI.git
+   git clone https://github.com/GianlucaScollo/OvercookedAI.git
    cd src/overcooked_demo
    ```
 2. **Build the Docker images and start the Flask server**
@@ -58,7 +60,7 @@ Make sure you have installed on your system:
 ## Usage
 1. Open your browser at http://localhost
 2. Select a **kitchen layout** and **game time**, then click **Create**.
-3. In a separate terminal, follow the **Symbolic AI Agent** README to launch the Jason agent (jason kitchen.mas2j).
+3. In a separate terminal, follow the **Symbolic AI Agent** README to launch the Jason agent (gradle run).
 4. The agent will join automatically as Player 2. Play together and observe real-time human-AI coordination!
 
 ---
@@ -72,11 +74,10 @@ OvercookedAI/
         |  ├── app.py             # Flask server and Socket.IO enrypoint
         |  ├── config.json        # Global settings and layouts
         |  ├── Dockerfile         # Flask container definition
-        |  ├── config.json        # Global settings and layouts
-        |  ├── Dockerfile         # Flask container definition
         |  ├── game.py            # Core game logic (wraps Overcooked MDP)
         |  ├── requirements.txt   # Dependencies
         |  ├── utils.py           # Helper functions
+        |  ├── graphics/          # Overcooked graphics (JS)
         |  └── static/            # Frontend assets (HTML, JS, CSS, images)
         |      ├── assets/        # Contains layout sprites
         │      ├── css/           
