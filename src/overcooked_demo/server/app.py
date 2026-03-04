@@ -1,5 +1,9 @@
 import os
 import sys
+import json, os, uuid
+from uuid import uuid4
+from flask import render_template, request, abort, redirect, url_for
+
 
 # If FLASK_ENV=production, we use eventlet for concurrency and patch
 # standard Python libraries so they work well with green threads.
@@ -26,9 +30,44 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from game import Game, OvercookedGame, OvercookedTutorial
 from utils import ThreadSafeDict, ThreadSafeSet
 
-###################
-# Global Config   #
-###################
+
+import  csv, hashlib
+from flask import send_file
+
+###########################
+# Adding users to buckets #
+###########################
+BUCKET_FILE = os.path.join(os.path.dirname(__file__), "buckets.json")
+
+def _load_buckets():
+    if not os.path.exists(BUCKET_FILE):
+        return {"cramped_first": 0, "forced_first": 0}
+    with open(BUCKET_FILE, "r") as f:
+        try:
+            return json.load(f)
+        except Exception:
+            return {"cramped_first": 0, "forced_first": 0}
+
+def _save_buckets(b):
+    tmp = BUCKET_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(b, f)
+    os.replace(tmp, BUCKET_FILE)
+
+def assign_order_smaller_bucket():
+    buckets = _load_buckets()
+    # pick the smaller count (tie-break: cramped_first)
+    if buckets["cramped_first"] <= buckets["forced_first"]:
+        chosen = "cramped_first"
+    else:
+        chosen = "forced_first"
+    buckets[chosen] += 1
+    _save_buckets(buckets)
+    return chosen
+
+#################
+# Global Config #
+#################
 
 # We load the configuration JSON. By default, we read from "config.json",
 # but this is configurable using the CONF_PATH env var.
@@ -45,6 +84,56 @@ MAX_GAMES = CONFIG["MAX_GAMES"]            # Maximum # of games that can exist a
 MAX_FPS = CONFIG["MAX_FPS"]                # The server’s frames-per-second for broadcasting states
 PREDEFINED_CONFIG = json.dumps(CONFIG["predefined"])  # JSON that configures the /predefined page
 TUTORIAL_CONFIG = json.dumps(CONFIG["tutorial"])       # JSON that configures the /tutorial page
+
+
+RESULTS_CSV = CONFIG.get("results_csv", "data/game_results.csv")
+_results_lock = Lock()
+_active_games = {}  # room_id -> metadata
+
+# Ensure folder exists
+os.makedirs(os.path.dirname(RESULTS_CSV), exist_ok=True)
+
+def _ensure_results_header():
+    """Create CSV file with header if missing/empty."""
+    if not os.path.exists(RESULTS_CSV) or os.path.getsize(RESULTS_CSV) == 0:
+        with open(RESULTS_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "timestamp_utc",   # ISO8601
+                "room_id",         # your room/session id
+                "layout",          # selected layout name
+                "score",           # final score
+                "duration_sec",    # seconds
+            ])
+
+def _append_result(row):
+    _ensure_results_header()
+    with _results_lock, open(RESULTS_CSV, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow(row)
+
+
+CHAT_CSV = CONFIG.get("chat_csv", "data/chat_logs.csv")
+_chat_lock = Lock()
+
+# Ensure folder exists for both results and chat (results folder likely already created)
+os.makedirs(os.path.dirname(CHAT_CSV), exist_ok=True)
+
+def _ensure_chat_header():
+    """Create chat CSV file with header if missing/empty."""
+    if not os.path.exists(CHAT_CSV) or os.path.getsize(CHAT_CSV) == 0:
+        with open(CHAT_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "timestamp_utc",   # ISO8601 UTC time when the server received the message
+                "room_id",         # the game room / session id
+                "sender",          # 'user' | 'agent' | other
+                "message"          # raw message text
+            ])
+
+def _append_chat_row(row):
+    _ensure_chat_header()
+    with _chat_lock, open(CHAT_CSV, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow(row)
 
 # We keep track of "free" game IDs in a queue. Each game has a unique ID from 0..(MAX_GAMES-1).
 FREE_IDS = queue.Queue(maxsize=MAX_GAMES)
@@ -81,9 +170,9 @@ GAME_NAME_TO_CLS = {
 game._configure(MAX_GAME_LENGTH)
 
 
-########################
-# Flask Configuration  #
-########################
+#######################
+# Flask Configuration #
+#######################
 
 # We create a Flask app with 'static/templates' as the directory for HTML.
 app = Flask(__name__, template_folder=os.path.join("static", "templates"))
@@ -100,9 +189,9 @@ handler.setLevel(logging.ERROR)
 app.logger.addHandler(handler)
 
 
-#####################################
+######################################
 # Global Coordination / Helper Funcs #
-#####################################
+######################################
 
 def try_create_game(game_name, **kwargs):
     """
@@ -197,9 +286,9 @@ def get_waiting_game():
         return get_game(waiting_id)
 
 
-##################################
-# Socket Handler Helper Functions#
-##################################
+###################################
+# Socket Handler Helper Functions #
+###################################
 
 def _leave_game(user_id):
     """
@@ -299,39 +388,122 @@ def _create_game(user_id, game_name, params={}):
 
 
 #####################
-# Debugging Helpers #
+# Flask HTTP Routes #
 #####################
-
-
-
-
-
-######################
-# Flask HTTP Routes  #
-######################
 # Hitting each of these endpoints creates a brand new socket that is closed
 # at after the server response is received. Standard HTTP protocol
 
+# request/response cycle
+@app.route("/enter")
+def enter():
+    """
+    Assign the participant to the smaller bucket and redirect to pre-questionnaire
+    with ?pid=...&order=...
+    """
+    pid = uuid.uuid4().hex[:8]  # short, human-friendly
+    order = assign_order_smaller_bucket()
+    # carry pid/order to pre-questionnaire (they’ll flow through all pages)
+    return redirect(url_for("pre_questionnaire") + f"?pid={pid}&order={order}")
+
+# --- keep your existing imports & config ---
+@app.route("/results.csv")
+def download_results():
+    _ensure_results_header()
+    return send_file(RESULTS_CSV, as_attachment=True, download_name="game_results.csv")
+
+# added home page route as a new landing page
 @app.route("/")
-def index():
-    # The homepage. We pass in the list of agent_names and layouts so that
+def home():
+    return render_template("home.html")
+
+@app.route("/pre-questionnaire")
+def pre_questionnaire():
+    # MS Forms embedded pre-questionnaire
+    return render_template("pre_questionnaire.html")
+
+@app.route("/game")
+def game_page():
+    # The gamepage. We pass in the list of agent_names and layouts so that
     # the user can pick them in the drop-down <select>.
-    return render_template(
-        "index.html", layouts=LAYOUTS
-    )
+    return render_template("index.html", layouts=LAYOUTS)
 
+@app.route("/post-questionnaire")
+def post_questionnaire():
+    # allow ?next=/finish (or anything you want after post)
+    next_url = request.args.get("next", "/finish")
+    return render_template("post_questionnaire.html", next_url=next_url)
 
+@app.route("/finish")
+def finish():
+    # thank you page
+    return render_template("finish.html")
+
+@app.route("/chat")
+def chat_alias():
+    return chat_room()
+
+# @app.route("/predefined")
+# def predefined():
+#     # The "predefined" page, which runs multiple layouts in a row
+#     uid = request.args.get("UID")
+#     num_layouts = len(CONFIG["predefined"]["experimentParams"]["layouts"])
+#     return render_template(
+#         "predefined.html",
+#         uid=uid,
+#         config=PREDEFINED_CONFIG,
+#         num_layouts=num_layouts,
+#     )
+
+# 1a) Original multi-layout predefined (kept for completeness)
 @app.route("/predefined")
-def predefined():
-    # The "predefined" page, which runs multiple layouts in a row
-    uid = request.args.get("UID")
-    num_layouts = len(CONFIG["predefined"]["experimentParams"]["layouts"])
-    return render_template(
-        "predefined.html",
-        uid=uid,
-        config=PREDEFINED_CONFIG,
-        num_layouts=num_layouts,
-    )
+def predefined_multi():
+    try:
+        cfg = CONFIG.get("predefined", {})
+        exp = cfg.get("experimentParams", {})
+        num_layouts = len(exp.get("layouts", []))
+        return render_template(
+            "predefined.html",
+            uid=str(uuid4()),
+            config=json.dumps(cfg),
+            num_layouts=num_layouts,
+            next_url=""  # not used in multi-layout
+        )
+    except Exception as e:
+        abort(500, f"predefined_multi error: {e}")
+
+# 1b) Single-layout, locked, with a next redirect
+#     Usage: /pre/<layout>?time=60&next=/survey/1
+@app.route("/pre/<layout>")
+def predefined_single(layout):
+    try:
+        cfg = CONFIG.get("predefined", {}).copy()
+        exp = cfg.get("experimentParams", {}).copy()
+
+        # lock to just this layout
+        exp["layouts"] = [layout]
+        # time override (fallback to predefined default)
+        default_time = CONFIG.get("predefined", {}).get("experimentParams", {}).get("gameTime", 60)
+        exp["gameTime"] = int(request.args.get("time", default_time))
+        # always deterministic order for single layout
+        exp["randomized"] = False
+        # force humans + collect data
+        exp["playerZero"] = "human"
+        exp["playerOne"] = "human"
+        exp["dataCollection"] = "on"
+
+        cfg["experimentParams"] = exp
+
+        next_url = request.args.get("next", "/post-questionnaire")
+
+        return render_template(
+            "predefined.html",
+            uid=str(uuid4()),
+            config=json.dumps(cfg),
+            num_layouts=1,
+            next_url=next_url
+        )
+    except Exception as e:
+        abort(500, f"predefined_single error: {e}")
 
 
 @app.route("/instructions")
@@ -344,6 +516,45 @@ def tutorial():
     # The tutorial page, which loads TUTORIAL_CONFIG from config.json
     return render_template("tutorial.html", config=TUTORIAL_CONFIG)
 
+@app.route("/chat.csv")
+def download_chat():
+    _ensure_chat_header()
+    return send_file(CHAT_CSV, as_attachment=True, download_name="chat_logs.csv")
+
+
+# Locked-layout game with auto-join/lobby matching
+@app.route("/play/<layout>")
+def play_locked(layout):
+    # default time from config, but overridable via ?time=XX
+    default_time = CONFIG.get("predefined", {}).get("experimentParams", {}).get("gameTime", 60)
+    locked_time = int(request.args.get("time", default_time))
+    next_url = request.args.get("next", "/post-questionnaire")
+
+    # Reuse index.html but pass "lock" flags so the page hides controls and auto-joins
+    return render_template(
+        "index.html",
+        layouts=LAYOUTS,
+        locked_layout=layout,
+        locked_time=locked_time,
+        auto_join=True,
+        next_url=next_url
+    )
+
+
+@app.route("/survey/<int:n>")
+def survey_n(n):
+    tmpl = f"survey{n}.html"
+    if not os.path.exists(os.path.join(app.template_folder or "templates", tmpl)):
+        abort(404)
+    next_url = request.args.get("next")  # <-- carry chain forward
+    return render_template(tmpl, next_url=next_url)
+
+# Simple chat room between rounds
+@app.route("/chat-room")
+def chat_room():
+    # If you want to pass a 'next' param: /chat-room?next=/play/forced_coordination?next=/survey/2
+    next_url = request.args.get("next", "/")
+    return render_template("chat_room.html", next_url=next_url)
 
 @app.route("/debug")
 def debug():
@@ -393,9 +604,9 @@ def debug():
     return jsonify(resp)
 
 
-###########################
-# Socket.IO Event Handlers#
-###########################
+############################
+# Socket.IO Event Handlers #
+############################
 # Asynchronous handling of client-side socket events. Note that the socket persists even after the
 # event has been handled. This allows for more rapid data communication, as a handshake only has to
 # happen once at the beginning. Thus, socket events are used for all game updates, where more rapid
@@ -414,9 +625,6 @@ def creation_params(params):
     # gameTime: time in seconds
     # dataCollection: on/off
     # layouts: [layout in the config file], this one determines which layout to use, and if there is more than one layout, a series of game is run back to back
-
-    
-    
     
     
 
@@ -461,6 +669,19 @@ def on_create(data):
         game_name = data.get("game_name", "overcooked")
         _create_game(user_id, game_name, params)
 
+        # ---- NEW: capture layout + real room_id after creation ----
+        params = data.get("params", {})
+        layout = params.get("layout")
+        if not layout:
+            layouts = params.get("layouts", [])
+            layout = layouts[0] if layouts else None
+
+        room_id = get_curr_room(user_id)  # <- use the real room the server put us in
+        _active_games[room_id] = {
+            "layout": layout or "",
+            "start_ts": datetime.utcnow()
+        }
+
 
 @socketio.on("join")
 def on_join(data):
@@ -473,6 +694,7 @@ def on_join(data):
     user_id = request.sid
     with USERS[user_id]:
         create_if_not_found = data.get("create_if_not_found", True)
+        params = data.get("params", {})  # <-- define params once, used below
 
         # Retrieve current game if one exists
         curr_game = get_curr_game(user_id)
@@ -485,7 +707,6 @@ def on_join(data):
 
         if not game and create_if_not_found:
             # If no waiting game is found, create a new one
-            params = data.get("params", {})
             creation_params(params)
             game_name = data.get("game_name", "overcooked")
             _create_game(user_id, game_name, params)
@@ -502,7 +723,26 @@ def on_join(data):
                 game.add_player(user_id)
 
                 if game.is_ready():
-                    # Game is ready to begin play
+                    # ---- Re-seed layouts if empty so activate() can pop safely ----
+                    layout_from_client = None
+                    try:
+                        layout_from_client = (
+                            (params.get('layouts') or [None])[0]  # prefer array if present
+                            or params.get('layout')
+                            or params.get('layout_name')
+                        )
+                    except Exception:
+                        layout_from_client = None
+
+                    if not getattr(game, 'layouts', None) or len(game.layouts) == 0:
+                        if layout_from_client:
+                            game.layouts = [layout_from_client]
+                        elif getattr(game, 'curr_layout', None):
+                            game.layouts = [game.curr_layout]
+                        else:
+                            game.layouts = ['cramped_room']  # safe fallback
+                    # ----------------------------------------------------------------
+
                     game.activate()
                     ACTIVE_GAMES.add(game.id)
                     emit(
@@ -511,8 +751,8 @@ def on_join(data):
                         room=game.id,
                     )
                     layout_info = {
-                        "layout_name": game.curr_layout, # name of layout e.g. cramped_room
-                        "terrain": game.mdp.terrain_mtx, # 2d list of the terrain
+                        "layout_name": game.curr_layout,       # e.g. 'cramped_room'
+                        "terrain": game.mdp.terrain_mtx,       # 2D list
                         "state": game.get_state()
                     }
                     socketio.emit("java_layout", layout_info, broadcast=True)
@@ -567,7 +807,6 @@ def on_action(data):
 
     
     
-
 @socketio.on("connect")
 def on_connect():
     """
@@ -578,9 +817,53 @@ def on_connect():
         return
     USERS[user_id] = Lock()
 
-#######################
+
+@socketio.on("chat:join")
+def on_chat_join(data):
+    user_id = request.sid
+
+    if user_id not in USERS:
+        USERS[user_id] = Lock()
+
+    try:
+        with USERS[user_id]:
+            room = (data or {}).get("room", "lobby")
+            join_room(room)
+            print(f"[CHAT] {user_id} joined room: {room}", file=sys.stderr)
+            emit("chat:joined", {"room": room})
+    except Exception as e:
+        print(f"[CHAT] on_chat_join fallback (no lock): {e}", file=sys.stderr)
+
+
+@socketio.on("chat:send")
+def handle_chat_send(data):
+    message = (data or {}).get("message", "").strip()
+    if not message:
+        return
+
+    # Fallback: if not in a room, use their own session id (still logs, won't crash)
+    user_id = request.sid
+    room_id = get_curr_room(user_id)
+    if not room_id:
+        room_id = user_id
+
+    sender = (data or {}).get("sender", "").strip()
+    payload = {"sender": sender, "message": message}
+    
+    # Broadcast of the message recevied
+    emit("chat:message", payload, broadcast=True, include_self=False)
+
+    # Log it
+    _append_chat_row([
+        datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        room_id,
+        sender,
+        message
+    ])
+
+########################
 # Java side connection #
-#######################
+########################
 
 @socketio.on("java_connected")
 def handle_java_connected(data):
@@ -688,14 +971,35 @@ def play_game(game: OvercookedGame, fps=6):
         socketio.emit(
             "end_game", {"status": status, "data": data}, room=game.id
         )
-        
+        try:
+        # Prefer the engine’s own fields for accuracy
+            layout_name = getattr(game, "curr_layout", _active_games.get(game.id, {}).get("layout", ""))
+        # game.start_time is set in OvercookedGame.activate()
+            duration_sec = 0
+            try:
+                import time as _t
+                duration_sec = int(max(0, _t.time() - getattr(game, "start_time", _t.time())))
+            except Exception:
+                pass
+
+            final_score = getattr(game, "score", "")
+            _append_result([
+                datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                game.id,
+                layout_name,
+                final_score,
+                duration_sec,
+                ])
+        except Exception as e:
+            app.logger.error(f"Failed to append game result for game {game.id}: {e}")
+
         if status != Game.Status.INACTIVE:
             game.deactivate()
         cleanup_game(game)
 
-#############################
-# Run the app if main       #
-#############################
+#######################
+# Run the app if main #
+#######################
 if __name__ == "__main__":
     # Dynamically parse host and port from environment variables (set by docker build)
     host = os.getenv("HOST", "0.0.0.0")

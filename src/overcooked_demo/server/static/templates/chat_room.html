@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat Room</title>
+  <link rel="stylesheet"
+        href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#0f172a; --text:#e2e8f0; --muted:#94a3b8; --a1:#22d3ee; --a2:#a78bfa; --panel:rgba(255,255,255,.06); --panel-brd:rgba(255,255,255,.15); }
+    html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+    .wrap { max-width: 1100px; margin: 28px auto 48px; padding: 0 14px; }
+    h1 { text-align:center; font-weight:800; letter-spacing:-.01em; margin-bottom:18px; }
+    .card-pane { background: var(--panel); border: 1px solid var(--panel-brd); border-radius: 14px; padding: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; }
+    @media (max-width: 992px) { .grid { grid-template-columns: 1fr; } }
+    #chat-box { height: 58vh; overflow-y:auto; background: rgba(2,6,23,.35); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: .75rem; }
+    .msg { margin-bottom: .35rem; font-size: 14px; line-height: 1.35; }
+    .me { font-weight: 700; }
+    .input-row { display:flex; gap:10px; margin-top:10px; }
+    #chat-input { flex:1; border-radius:12px; border:1px solid rgba(255,255,255,.2); background:rgba(2,6,23,.45); color:var(--text); padding:10px 12px; }
+    .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; }
+    .helper h5 { font-weight:700; margin-bottom:8px; }
+    .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); }
+    .footer-actions { text-align:right; margin-top: 12px; }
+    .btn-next { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Chat Room</h1>
+
+    <div class="grid">
+      <div class="card-pane">
+        <div id="chat-box" aria-live="polite"></div>
+
+        <div class="input-row">
+          <input id="chat-input" type="text" placeholder="Type your message…" autocomplete="off">
+          <button id="chat-send" class="btn-send">Send</button>
+        </div>
+
+        <div class="footer-actions">
+          <a id="continueBtn" class="btn-next">Continue</a>
+        </div>
+      </div>
+
+      <aside class="card-pane helper">
+        <h5>If unsure, use the following commands</h5>
+        <div class="cmd">Command 1 — brief explanation.</div>
+        <div class="cmd">Command 2 — brief explanation.</div>
+        <div class="cmd">Command 3 — brief explanation.</div>
+        <div class="cmd">Command 4 — brief explanation.</div>
+        <div class="cmd">Command 5 — brief explanation.</div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+
+  <script type="application/json" id="server-config">
+  {{ { "next_url": next_url|default(None) }|tojson }}
+  </script>
+
+  <script>
+    // PID & ORDER from current URL
+    const here = new URL(window.location.href);
+    const PID   = here.searchParams.get('pid')   || '';
+    const ORDER = here.searchParams.get('order') || '';
+
+    // NEXT_URL from server
+    let NEXT_URL = '/';
+    try {
+      const cfg = JSON.parse(document.getElementById('server-config').textContent || '{}');
+      NEXT_URL = cfg.next_url || '/';
+    } catch (e) { NEXT_URL = '/'; }
+
+    function withParams(u) {
+      const x = new URL(u, window.location.origin);
+      if (PID)   x.searchParams.set('pid', PID);
+      if (ORDER) x.searchParams.set('order', ORDER);
+      return x.pathname + (x.search ? x.search : '');
+    }
+
+    // Socket.IO client
+    const socket = io()
+
+    const chatBox = document.getElementById('chat-box');
+    const input   = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send');
+    const contBtn = document.getElementById('continueBtn');
+
+    function appendMsg(sender, text) {
+      const div = document.createElement('div');
+      div.className = 'msg';
+      div.innerHTML = `<span class="${sender === 'me' ? 'me' : ''}">${sender}:</span> ${text}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    socket.on('connect', function() { 
+      console.log('Connected — joining lobby chat...');
+      socket.emit('chat:join', { room: 'lobby' }); 
+    });
+    
+    socket.on('chat:joined', function(data) {
+      console.log('Joined chat room:', data.room);
+      appendMsg('system', 'You joined the chat lobby.');
+    });
+
+    socket.on('chat:message', function(payload) {
+      const msg = (payload && payload.message) || '';
+      const sender = (payload && payload.sender) || 'partner';
+      appendMsg(sender, msg);
+    });
+
+    function send() {
+      const msg = (input.value || '').trim();
+      if (!msg) return;
+      socket.emit('chat:send', {sender: 'user', message: msg});
+      appendMsg('me', msg);
+      input.value = '';
+      input.focus();
+    }
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+    contBtn.href = NEXT_URL ? withParams(NEXT_URL) : '/';
+  </script>
+</body>
+</html>
