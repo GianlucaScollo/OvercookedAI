@@ -12,6 +12,10 @@
 // Create a persistent Socket.IO connection with the server.
 var socket = io();
 
+// Expose the socket globally, so the function withSocket() in index.html
+// can find it via window.socket.
+window.socket = socket;
+
 /* -----------------------------------------------------------------------------
  * Button click event handlers
  * -----------------------------------------------------------------------------
@@ -20,6 +24,11 @@ var socket = io();
  * -----------------------------------------------------------------------------
  */
 
+
+// The #create and #join click handlers have been moved to index.html 
+// to properly handle agent:start emission as well.
+
+/*
 $(function() {
     // When "Create Game" is clicked
     $('#create').click(function () {
@@ -48,6 +57,7 @@ $(function() {
         $('#tutorial').hide();
     });
 });
+*/
 
 $(function(){
     // Initialises any Bootstrap tooltips that might be on the page
@@ -56,6 +66,7 @@ $(function(){
     });
 });
 
+/*
 $(function() {
     // When "Join Existing Game" is clicked
     $('#join').click(function() {
@@ -74,6 +85,7 @@ $(function() {
         $('#leave').attr("disabled", true);
     });
 });
+*/
 
 
 /* -----------------------------------------------------------------------------
@@ -106,16 +118,16 @@ socket.on('waiting', function(data) {
     $('#lobby').show();
 
     // Hide join/create buttons (since already waiting)
-    $('#join').hide();
-    $('#join').attr("disabled", true);
+    //$('#join').hide();
+    //$('#join').attr("disabled", true);
     $('#survey').hide();
     $('#survey').attr("disabled", true);
     $('#create').hide();
     $('#create').attr("disabled", true);
 
     // Show "Leave" button
-    $('#leave').show();
-    $('#leave').attr("disabled", false);
+    //$('#leave').show();
+    //$('#leave').attr("disabled", false);
 
     // If not currently in a game, periodically attempt to "join"
     if (!data.in_game) {
@@ -142,8 +154,8 @@ socket.on('creation_failed', function(data) {
     $('#waiting').hide();
 
     // Re-enable join/create
-    $('#join').show();
-    $('#join').attr("disabled", false);
+    //$('#join').show();
+    //$('#join').attr("disabled", false);
     $('#create').show();
     $('#create').attr("disabled", false);
 
@@ -179,16 +191,16 @@ socket.on('start_game', function(data) {
     $('#game-over').hide();
     $('#lobby').hide();
     $('#waiting').hide();
-    $('#join').hide();
-    $('#join').attr("disabled", true);
+    //$('#join').hide();
+    //$('#join').attr("disabled", true);
     $('#survey').hide();
     $('#survey').attr("disabled", true);
     $('#create').hide();
     $('#create').attr("disabled", true);
     $("#instructions").hide();
     $('#tutorial').hide();
-    $('#leave').show();
-    $('#leave').attr("disabled", false);
+    //$('#leave').show();
+    //$('#leave').attr("disabled", false);
     $('#game-title').show();
    
 
@@ -256,16 +268,16 @@ socket.on('end_game', function(data) {
 
     
 
-    $("#join").show();
-    $('#join').attr("disabled", false);
+    //$("#join").show();
+    //$('#join').attr("disabled", false);
     $("#survey").show();
     $('#survey').attr("disabled", false);
-    $("#create").show();
+    $("#create").hide();
     $('#create').attr("disabled", false);
-    $("#instructions").show();
-    $('#tutorial').show();
-    $("#leave").hide();
-    $('#leave').attr("disabled", true);
+    $("#instructions").hide();
+    $('#tutorial').hide();
+    //$("#leave").hide();
+    //$('#leave').attr("disabled", true);
 
     // If the game ended unexpectedly (another user disconnected, etc.)
     if (data.status === 'inactive') {
@@ -282,14 +294,14 @@ socket.on('end_lobby', function() {
     $('#lobby').hide();
 
     // Show/enable create/join
-    $("#join").show();
-    $('#join').attr("disabled", false);
+    //$("#join").show();
+    //$('#join').attr("disabled", false);
     $("#create").show();
     $('#create').attr("disabled", false);
-    $("#leave").hide();
-    $('#leave').attr("disabled", true);
-    $("#instructions").show();
-    $('#tutorial').show();
+    //$("#leave").hide();
+    //$('#leave').attr("disabled", true);
+    $("#instructions").hide();
+    $('#tutorial').hide();
 
     // Stop the repeated attempts to join
     clearInterval(window.intervalID);

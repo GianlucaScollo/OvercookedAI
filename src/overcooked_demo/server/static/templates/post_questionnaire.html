@@ -67,5 +67,19 @@
       window.location.href = url;
     });
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+  <script>
+    // Reliable shutdown: the user stays in the post-questionnaire for at least
+    // a few minutes so the socket will certainly have time to connect and send
+    // the 'agent:shutdown' to stop the gradle process.
+    (function() {
+      const sock = io();
+      sock.on('connect', function() {
+        sock.emit('agent:shutdown', { context: 'post-questionnaire' });
+        console.log('[agent] Shutdown inviato da post-questionnaire.');
+        setTimeout(function() { sock.disconnect(); }, 1500);
+      });
+    })();
+  </script>
 </body>
 </html>

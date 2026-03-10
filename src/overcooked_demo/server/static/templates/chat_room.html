@@ -26,23 +26,38 @@
     .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); }
     .footer-actions { text-align:right; margin-top: 12px; }
     .btn-next { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; }
+    /* agent-status */
+    #agent-status { font-size:13px; color: var(--muted); margin-bottom: 10px; text-align: center; }
+    #agent-status.ready { color: #4ade80; }
+    #agent-status.connecting { color: #facc15; }
+    /* Typing indicator */
+    .typing-indicator { font-size: 13px; color: var(--muted); font-style: italic; padding: 4px 6px; display: none; }
+    .typing-indicator.visible { display: block; }
+    /* System message (info to the user) */
+    .msg.system-info { color: var(--muted); font-style: italic; font-size: 13px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Chat Room</h1>
 
+    <!-- visual indicator of agent status -->
+    <p id="agent-status" class="connecting">⏳ Connecting to agent…</p>
+
     <div class="grid">
       <div class="card-pane">
         <div id="chat-box" aria-live="polite"></div>
 
+        <!-- Typing indicator -->
+        <div id="typing-indicator" class="typing-indicator">staychef is typing…</div>
+
         <div class="input-row">
           <input id="chat-input" type="text" placeholder="Type your message…" autocomplete="off">
-          <button id="chat-send" class="btn-send">Send</button>
+          <button id="sendBtn" class="btn-send" disabled>Send</button>
         </div>
 
         <div class="footer-actions">
-          <a id="continueBtn" class="btn-next">Continue</a>
+          <button id="continueBtn" class="btn-next" disabled>Continue</button>
         </div>
       </div>
 
@@ -88,8 +103,10 @@
 
     const chatBox = document.getElementById('chat-box');
     const input   = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('chat-send');
+    const sendBtn = document.getElementById('sendBtn');
     const contBtn = document.getElementById('continueBtn');
+    const agentStatus = document.getElementById('agent-status');
+    const typingIndicator = document.getElementById('typing-indicator');
 
     function appendMsg(sender, text) {
       const div = document.createElement('div');
@@ -98,20 +115,66 @@
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
+    
+    function appendSystemMsg(text) {
+      const div = document.createElement('div');
+      div.className = 'msg system-info';
+      div.textContent = text;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
 
-    socket.on('connect', function() { 
-      console.log('Connected — joining lobby chat...');
-      socket.emit('chat:join', { room: 'lobby' }); 
+    let typingTimeout = null;
+
+    function showTyping() {
+      typingIndicator.classList.add('visible');
+      chatBox.scrollTop = chatBox.scrollHeight;
+      if (typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(function () {
+        hideTyping();
+        sendBtn.disabled = false;
+        input.focus();
+      }, 30000);
+    }
+
+    function hideTyping() {
+      typingIndicator.classList.remove('visible');
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        typingTimeout = null;
+      }
+    }
+
+    socket.on('connect', function() {
+      console.log('Connected — joining lobby chat and starting agent…');
+      socket.emit('chat:join', { room: 'lobby' });
+
+      // Start the agent (idempotent: if already active it does nothing)
+      socket.emit('agent:start', { context: 'pre-chat' });
+      // info message to user
+      appendSystemMsg('⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
     });
     
     socket.on('chat:joined', function(data) {
       console.log('Joined chat room:', data.room);
-      appendMsg('system', 'You joined the chat lobby.');
+      //appendMsg('system', 'You joined the chat lobby.');
+    });
+
+    socket.on('agent:chat_ready', function() {
+        agentStatus.textContent = '🟢 Agent ready to chat!';
+        agentStatus.className = 'ready';
+        contBtn.disabled = false;
+        sendBtn.disabled = false;
+        appendSystemMsg('Agent is ready! You can now send messages.');
+        input.focus();
     });
 
     socket.on('chat:message', function(payload) {
       const msg = (payload && payload.message) || '';
       const sender = (payload && payload.sender) || 'partner';
+      hideTyping();
+      sendBtn.disabled = false;
+      input.focus();
       appendMsg(sender, msg);
     });
 
@@ -122,11 +185,18 @@
       appendMsg('me', msg);
       input.value = '';
       input.focus();
+      if (agentStatus.classList.contains('ready')) {
+        showTyping();
+        sendBtn.disabled = true;
+      }
     }
+
     sendBtn.addEventListener('click', send);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
-
-    contBtn.href = NEXT_URL ? withParams(NEXT_URL) : '/';
+    
+    contBtn.addEventListener('click', function() {
+      window.location.href = NEXT_URL ? withParams(NEXT_URL) : '/';
+    });
   </script>
 </body>
 </html>

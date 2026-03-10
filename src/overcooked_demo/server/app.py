@@ -30,6 +30,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from game import Game, OvercookedGame, OvercookedTutorial
 from utils import ThreadSafeDict, ThreadSafeSet
 
+import subprocess
 
 import  csv, hashlib
 from flask import send_file
@@ -168,6 +169,66 @@ GAME_NAME_TO_CLS = {
 
 # We tell our local "game.py" to store global references to MAX_GAME_LENGTH 
 game._configure(MAX_GAME_LENGTH)
+
+
+############################
+# Subprocess SymbolicAgent #
+############################
+
+# global flags
+_agent_plans_ready = False
+_agent_process = None
+_AGENT_DIR = os.environ.get("SYMBOLIC_AGENT_DIR", "/app/SymbolicAIAgent")
+
+
+def start_symbolic_agent():
+    '''
+    Start gradle run
+    '''
+    global _agent_process
+    if _agent_process is not None and _agent_process.poll() is None:
+        print("[agent] Already active, skip.")
+        return
+
+    agent_dir = os.path.abspath(_AGENT_DIR)
+    print(f"[agent] Starting symbolic agent in: {agent_dir}")
+    try:
+        _agent_process = subprocess.Popen(
+            ["gradle", "run"],
+            cwd=agent_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        print(f"[agent] Agent started (PID {_agent_process.pid})")
+
+        # ── DEBUG ──────────────
+        import threading
+        def log_output(proc):
+            for line in iter(proc.stdout.readline, b''):
+                print(f"[gradle] {line.decode('utf-8', errors='replace').rstrip()}")
+        t = threading.Thread(target=log_output, args=(_agent_process,), daemon=True)
+        t.start()
+        # ─────────────────────────────────────────────────────────────────
+
+    except Exception as e:
+        print(f"[agent] Agent start error: {e}")
+
+def shutdown_symbolic_agent():
+    """
+    Sends the agent_shutdown signal via socket (the agent does System.exit(0))
+    and then waits for the process to die as a fallback.
+    """
+    global _agent_process
+    socketio.emit("agent_shutdown", {}, broadcast=True)
+    print("[agent] agent_shutdown emitted.")
+    # Wait for the process to finish (max 8s), then force kill
+    if _agent_process and _agent_process.poll() is None:
+        try:
+            _agent_process.wait(timeout=8)
+        except subprocess.TimeoutExpired:
+            print("[agent] Timeout — SIGKILL.")
+            _agent_process.kill()
+    _agent_process = None
 
 
 #######################
@@ -385,6 +446,7 @@ def _create_game(user_id, game_name, params={}):
             # If not ready, we put it in the WAITING_GAMES queue
             WAITING_GAMES.put(game.id)
             emit("waiting", {"in_game": True}, room=game.id)
+            socketio.emit("waiting", {"in_game": True}, broadcast=True)
 
 
 #####################
@@ -536,7 +598,7 @@ def play_locked(layout):
         layouts=LAYOUTS,
         locked_layout=layout,
         locked_time=locked_time,
-        auto_join=True,
+        auto_join=False,
         next_url=next_url
     )
 
@@ -745,39 +807,65 @@ def on_join(data):
 
                     game.activate()
                     ACTIVE_GAMES.add(game.id)
-                    emit(
-                        "start_game",
-                        {"spectating": False, "start_info": game.to_json()},
-                        room=game.id,
-                    )
+                    
                     layout_info = {
                         "layout_name": game.curr_layout,       # e.g. 'cramped_room'
                         "terrain": game.mdp.terrain_mtx,       # 2D list
                         "state": game.get_state()
                     }
                     socketio.emit("java_layout", layout_info, broadcast=True)
-                    socketio.start_background_task(play_game, game)
+
+                    # Background task that wait the plans and after send start_game
+                    socketio.start_background_task(
+                        wait_plans_then_start, game, spectating=False
+                    )
                 else:
                     # Still need to keep waiting for players
                     WAITING_GAMES.put(game.id)
                     emit("waiting", {"in_game": True}, room=game.id)
+                    socketio.emit("waiting", {"in_game": True}, broadcast=True)
 
 
-
-@socketio.on("leave")
-def on_leave(data):
+def wait_plans_then_start(game: OvercookedGame, spectating=False, timeout=40):
     """
-    If the user clicks "Leave" or otherwise triggers a leave event, we remove them from the game,
-    possibly ending the game for all players if it's active.
+    Waits for agent:plans_ready, then send start_game and runs play_game().
+    The browser only sees the game when the agent is actually ready.
     """
-    user_id = request.sid
-    with USERS[user_id]:
-        was_active = _leave_game(user_id)
+    global _agent_plans_ready
+    _agent_plans_ready = False
 
-        if was_active:
-            emit("end_game", {"status": Game.Status.DONE, "data": {}})
-        else:
-            emit("end_lobby")
+    waited = 0
+    while not _agent_plans_ready and waited < timeout:
+        socketio.sleep(0.5)
+        waited += 0.5
+
+    if not _agent_plans_ready:
+        print(f"[server] Timeout {timeout}s — forced start_game", file=sys.stderr)
+    else:
+        print(f"[server] Plans ready after {waited}s → start_game", file=sys.stderr)
+
+    socketio.emit(
+        "start_game",
+        {"spectating": spectating, "start_info": game.to_json()},
+        room=game.id,
+    )
+    play_game(game)
+
+
+#@socketio.on("leave")
+#def on_leave(data):
+#    """
+#    If the user clicks "Leave" or otherwise triggers a leave event, we remove them from the game,
+#    possibly ending the game for all players if it's active.
+#    """
+#    user_id = request.sid
+#    with USERS[user_id]:
+#        was_active = _leave_game(user_id)
+#
+#        if was_active:
+#            emit("end_game", {"status": Game.Status.DONE, "data": {}})
+#        else:
+#            emit("end_lobby")
 
 
 @socketio.on("action")
@@ -861,6 +949,41 @@ def handle_chat_send(data):
         message
     ])
 
+
+########################
+# Agent Event Handlers #
+########################
+
+@socketio.on("agent:start")
+def on_agent_start(data):
+    print(f"[server] agent:start (context={data.get('context','?')})")
+    start_symbolic_agent()
+
+@app.route("/agent/status")
+def agent_status():
+    global _agent_process
+    is_running = _agent_process is not None and _agent_process.poll() is None
+    return jsonify({"running": is_running})
+
+@socketio.on("agent:shutdown")
+def on_agent_shutdown(data):
+    print(f"[server] agent:shutdown (context={data.get('context','?')})")
+    shutdown_symbolic_agent()
+
+@socketio.on("agent:plans_ready")
+def on_agent_plans_ready(data):
+    global _agent_plans_ready
+    _agent_plans_ready = True
+    print("[server] agent:plans_ready")
+    socketio.emit("agent:plans_ready", {}, broadcast=True)
+
+@socketio.on("agent:chat_ready")
+def on_agent_chat_ready(data):
+    print("[server] agent:chat_ready")
+    # Broadcast to browser + Interpreter
+    socketio.emit("agent:chat_ready", {}, broadcast=True)
+
+
 ########################
 # Java side connection #
 ########################
@@ -868,7 +991,9 @@ def handle_chat_send(data):
 @socketio.on("java_connected")
 def handle_java_connected(data):
     print("Got java_connected event from Java with data:", data)
-    # Broadcast this event to ALL connected clients (including browsers)
+    # Report the browser that the agent is ready (enables _agentReady and Continue)
+    socketio.emit("agent:ready", {}, broadcast=True)
+    # Report to index.js (show UI message)
     socketio.emit("java_connected", data, broadcast=True)
 
 @socketio.on("thought")

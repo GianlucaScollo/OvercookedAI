@@ -85,13 +85,18 @@
 
     <!-- Control buttons -->
     <div id="control" class="text-center mb-3">
-      <button id="create" class="btn btn-primary">Create Game</button>
-      <button id="join" class="btn btn-secondary">Join Existing Game</button>
+      <button id="create" class="btn btn-primary">Start Game</button>
+      <!-- <button id="join" class="btn btn-secondary">Join Existing Game</button> -->
       <button id="survey" onclick="window.location.href='/post-questionnaire'">Continue Survey</button>
-      <button id="leave" style="display:none;" class="btn btn-danger">Leave</button>
+      <!-- <button id="leave" style="display:none;" class="btn btn-danger">Leave</button> -->
     </div>
 
     <!-- Waiting banner -->
+    <div id="waiting-agent" class="text-center" style="display:none; margin: 18px 0;">
+      <h4>⏳ Starting AI agent, please wait…</h4>
+      <p style="color:#6c757d; font-size:14px;">This may take a few seconds on first launch.</p>
+    </div>
+
     <div id="waiting" class="text-center" style="display:none; margin: 18px 0;">
       <h4>Waiting for the other player to join…</h4>
     </div>
@@ -120,40 +125,63 @@
         try {
           const cfg = JSON.parse(document.getElementById('server-config').textContent || '{}');
           window.LOCKED_LAYOUT = cfg.locked_layout ?? null;
-          window.LOCKED_TIME   = cfg.locked_time  ?? null;
-          window.NEXT_URL      = cfg.next_url     ?? null;
+          window.LOCKED_TIME   = cfg.locked_time   ?? null;
+          window.NEXT_URL      = cfg.next_url      ?? null;
+          window.AUTO_JOIN     = cfg.auto_join     ?? false;
         } catch (e) {
           window.LOCKED_LAYOUT = null;
           window.LOCKED_TIME   = null;
           window.NEXT_URL      = null;
+          window.AUTO_JOIN     = false;
         }
       })();
+
+      // Global Agent Status Flag (Read by joinWhenReady() to decide whether to wait or not)
+      window._agentReady = false;
 
       function withSocket(fn) {
         const start = Date.now();
         const t = setInterval(function () {
           if (window.socket && typeof window.socket.emit === 'function') {
-            clearInterval(t); fn(window.socket);
+            clearInterval(t);
+            fn(window.socket);
           } else if (Date.now() - start > 4000) {
-            clearInterval(t); console.warn('Socket not ready');
+            clearInterval(t);
+            console.warn('Socket not ready');
           }
         }, 50);
       }
 
+      // Permanent listeners on agent:ready and agent_shutdown
+      withSocket(function (s) {
+        s.on('agent:ready', function () {
+          window._agentReady = true;
+          document.getElementById('waiting-agent').style.display = 'none';
+          console.log('[agent] agent:ready.');
+        });
+        s.on('agent_shutdown', function () {
+          window._agentReady = false;
+          console.log('[agent] agent_shutdown.');
+        });
+      });
+
       // Waiting/start UI hooks
       (function hookWaitingUI() {
         const waitEl = document.getElementById('waiting');
+        const waitAgent = document.getElementById('waiting-agent');
         const gameWrap = document.getElementById('overcooked-container');
         const t = setInterval(function () {
           if (!window.socket) return;
           clearInterval(t);
           window.socket.on('waiting', function () {
-            waitEl.style.display = 'block';
+            waitAgent.style.display  = 'none';
+            waitEl.style.display   = 'block';
             gameWrap.style.display = 'none';
           });
           window.socket.on('start_game', function () {
-            waitEl.style.display = 'none';
-            gameWrap.style.display = 'block';
+              waitAgent.style.display = 'none';
+              waitEl.style.display    = 'none';
+              gameWrap.style.display  = 'block';
           });
         }, 50);
       })();
@@ -176,8 +204,7 @@
           if (surveyBtn) {
             surveyBtn.onclick = function (e) {
               e.preventDefault();
-              const target = appendParams(window.NEXT_URL, pid, order);
-              window.location.href = target;
+              window.location.href = appendParams(window.NEXT_URL, pid, order);
             };
           }
         }
@@ -212,9 +239,40 @@
           };
         }
 
-        function showWaiting() {
-          document.getElementById('waiting').style.display = 'block';
+        function showWaitingAgent() {
+          document.getElementById('waiting-agent').style.display = 'block';
           document.getElementById('overcooked-container').style.display = 'none';
+        }
+
+        // ── joinWhenReady ─────────────────────────────────────────────────────
+        // - if _agentReady is already true (agent survived from chat) → immediate join
+        // - otherwise → start the agent and wait for agent:ready (max 30s) → then join
+        function joinWhenReady(s, p, context) {
+          if (window._agentReady) {
+            console.log('[agent] Ready to go → join immediately (' + context + ')');
+            s.emit('join', { game_name: 'overcooked', create_if_not_found: true, params: p });
+            return;
+          }
+
+          // Agent not ready -> gradle run
+          console.log('[agent] Not ready to go → agent:start wait for agent:ready (' + context + ')...');
+          showWaitingAgent();
+          s.emit('agent:start', { context: context });
+
+          const TIMEOUT_MS = 30000;
+          const startTs    = Date.now();
+          const waitId = setInterval(function () {
+            if (window._agentReady) {
+              clearInterval(waitId);
+              console.log('[agent] agent:ready received → join (' + context + ')');
+              s.emit('join', { game_name: 'overcooked', create_if_not_found: true, params: p });
+            } else if (Date.now() - startTs > TIMEOUT_MS) {
+              clearInterval(waitId);
+              console.warn('[agent] Timeout 30s → forced join (' + context + ')');
+              document.getElementById('waiting-agent').style.display = 'none';
+              s.emit('join', { game_name: 'overcooked', create_if_not_found: true, params: p });
+            }
+          }, 200);
         }
 
         document.getElementById('create').addEventListener('click', function (e) {
@@ -222,20 +280,41 @@
           e.stopImmediatePropagation();
           const p = params();
           withSocket(function (s) {
-            s.emit('join', { game_name: 'overcooked', create_if_not_found: true, params: p });
+            joinWhenReady(s, p, 'create-click');
           });
-          showWaiting();
         });
 
-        document.getElementById('join').addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          const p = params();
-          withSocket(function (s) {
-            s.emit('join', { game_name: 'overcooked', create_if_not_found: false, params: p });
+        // check if next url is a chat-room
+        const nextIsChatRoom = window.NEXT_URL && window.NEXT_URL.includes('/chat-room');
+
+        // Agent shutdown after end_game (only if NEXT_URL is not a chat-room)
+        withSocket(function (s) {
+          s.on('end_game', function () {
+            if (!nextIsChatRoom) {
+              s.emit('agent:shutdown', { context: 'end_game_no_chat' });
+            }
           });
-          showWaiting();
         });
+
+        if (window.AUTO_JOIN) {
+          fetch('/agent/status')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.running) {
+                window._agentReady = true;
+                console.log('[agent] Agent already active.');
+              }
+              withSocket(function (s) {
+                joinWhenReady(s, params(), 'auto-join');
+              });
+            })
+            .catch(function () {
+              console.warn('[agent/status] Fetch failed → auto-join without status.');
+              withSocket(function (s) {
+                joinWhenReady(s, params(), 'auto-join-fallback');
+              });
+            });
+        }
       });
     </script>
   </body>

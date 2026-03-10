@@ -66,5 +66,16 @@
       window.location.href = url;
     });
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+  <script>
+    // Fallback: extra measure to shutdown the gradle process
+    (function() {
+      const sock = io();
+      sock.on('connect', function() {
+        sock.emit('agent:shutdown', { context: 'survey3-page-fallback' });
+        setTimeout(function() { sock.disconnect(); }, 1500);
+      });
+    });
+  </script>
 </body>
 </html>
