@@ -192,23 +192,32 @@ def start_symbolic_agent():
 
     agent_dir = os.path.abspath(_AGENT_DIR)
     print(f"[agent] Starting symbolic agent in: {agent_dir}")
+    
+    debug_kqml = os.getenv('DEBUG_KQML', 'false').lower() == 'true'
+    print(f"[agent] DEBUG_KQML={debug_kqml}")
+
+    env = os.environ.copy()
+    env['DEBUG_KQML'] = str(debug_kqml).lower()
+    env['ORG_GRADLE_PROJECT_debugKqml'] = str(debug_kqml).lower()
+    
     try:
         _agent_process = subprocess.Popen(
             ["gradle", "run"],
             cwd=agent_dir,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
+            env=env
         )
         print(f"[agent] Agent started (PID {_agent_process.pid})")
 
-        # ── DEBUG ──────────────
+        # ── DEBUG ───────────────────────────────────────────────────────────────────
         import threading
         def log_output(proc):
             for line in iter(proc.stdout.readline, b''):
                 print(f"[gradle] {line.decode('utf-8', errors='replace').rstrip()}")
         t = threading.Thread(target=log_output, args=(_agent_process,), daemon=True)
         t.start()
-        # ─────────────────────────────────────────────────────────────────
+        # ────────────────────────────────────────────────────────────────────────────
 
     except Exception as e:
         print(f"[agent] Agent start error: {e}")

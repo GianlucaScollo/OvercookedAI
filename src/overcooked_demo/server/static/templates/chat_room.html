@@ -175,7 +175,10 @@
       hideTyping();
       sendBtn.disabled = false;
       input.focus();
-      appendMsg(sender, msg);
+      if (sender.toLowerCase() === 'system')
+        appendSystemMsg(msg);
+      else
+        appendMsg(sender, msg);
     });
 
     function send() {
