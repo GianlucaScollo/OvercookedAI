@@ -22,11 +22,11 @@
 <body>
   <div class="wrap">
     <h1>Survey 4</h1>
-    <p class="sub">Final quick questions. Thanks for participating! Paste your ID again at the top.</p>
+    <p class="sub">Final quick questions. Thanks for participating!</p>
     <div class="text-center"><span id="pid" class="pid"></span></div>
 
     <div class="card">
-      <iframe src="https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UMjkyVE1BSkZYTVZJTFpDWUszMUdQOFFHMS4u" allowfullscreen></iframe>
+      <iframe id="formFrame" src="" allowfullscreen></iframe>
       <div class="form-check mt-3">
         <input class="form-check-input" type="checkbox" id="consentCheck">
         <label class="form-check-label" for="consentCheck">
@@ -34,7 +34,7 @@
         </label>
       </div>
       <div class="footer">
-        <button id="next" class="btn-cta">Continue</button>
+        <button id="continue" class="btn-cta">Continue</button>
       </div>
     </div>
   </div>
@@ -42,37 +42,51 @@
   <script>
     const u = new URL(window.location.href);
     const pid = u.searchParams.get('pid') || '';
-    const order = u.searchParams.get('order') || 'cramped_first';
+    const order = u.searchParams.get('order') || 'route1';
+    const nextUrl = u.searchParams.get('next') || '/';
+    
     document.getElementById('pid').textContent = pid ? `Participant ID: ${pid}` : '';
 
-    const consentCheck = document.getElementById('consentCheck');
-    const nextBtn = document.getElementById('next');
+    const formUrls = {
+      'route1': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UMjkyVE1BSkZYTVZJTFpDWUszMUdQOFFHMS4u',
+      'route2': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UQ1Q5MDFUQ1pEWkRaWVFaVFBJUk9KQkwzOC4u'
+    };
 
-    const updateButton = () => { nextBtn.disabled = !consentCheck.checked; };
+    const formUrl = formUrls[order] || formUrls['route1'];
+    document.getElementById('formFrame').src = formUrl;
+
+    const consentCheck = document.getElementById('consentCheck');
+    const continueBtn = document.getElementById('continue');
+
+    const updateButton = () => { continueBtn.disabled = !consentCheck.checked; };
     consentCheck.addEventListener('change', updateButton);
     updateButton();
 
-    // Forward to post-questionnaire
-    nextBtn.addEventListener('click', function(e) {
+    continueBtn.addEventListener('click', function(e) {
       if (!consentCheck.checked) {
         e.preventDefault();
         alert('Please complete the survey before continuing.');
         return;
       }
-      const url = `/post-questionnaire?pid=${pid}&order=${order}&next=${encodeURIComponent('/finish')}`;
-      window.location.href = url;
+      window.location.href = nextUrl;
     });
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
   <script>
-    // Fallback: extra measure to shutdown the gradle process
     (function() {
       const sock = io();
+
       sock.on('connect', function() {
-        sock.emit('agent:shutdown', { context: 'survey4-page-fallback' });
-        setTimeout(function() { sock.disconnect(); }, 1500);
+        console.log('[survey4] Socket connected - emitting agent:shutdown...');
+        sock.emit('agent:shutdown', { context: 'survey4-page' });
       });
-    });
+
+      setTimeout(function() {
+        if (sock.connected) {
+          sock.disconnect();
+        }
+      }, 2000);
+    })();
   </script>
 </body>
 </html>

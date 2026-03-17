@@ -25,11 +25,18 @@
     // Fallback: extra measure to shutdown the gradle process
     (function() {
       const sock = io();
+
       sock.on('connect', function() {
-        sock.emit('agent:shutdown', { context: 'finish-page-fallback' });
-        setTimeout(function() { sock.disconnect(); }, 1500);
+        console.log('[finish] Socket connected - emitting agent:shutdown...');
+        sock.emit('agent:shutdown', { context: 'finish-page' });
       });
-    });
+
+      setTimeout(function() {
+        if (sock.connected) {
+          sock.disconnect();
+        }
+      }, 2000);
+    })();
   </script>
 </body>
 </html>

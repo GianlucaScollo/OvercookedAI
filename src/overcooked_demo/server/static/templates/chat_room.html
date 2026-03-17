@@ -74,29 +74,11 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
 
-  <script type="application/json" id="server-config">
-  {{ { "next_url": next_url|default(None) }|tojson }}
-  </script>
-
   <script>
-    // PID & ORDER from current URL
-    const here = new URL(window.location.href);
-    const PID   = here.searchParams.get('pid')   || '';
-    const ORDER = here.searchParams.get('order') || '';
-
-    // NEXT_URL from server
-    let NEXT_URL = '/';
-    try {
-      const cfg = JSON.parse(document.getElementById('server-config').textContent || '{}');
-      NEXT_URL = cfg.next_url || '/';
-    } catch (e) { NEXT_URL = '/'; }
-
-    function withParams(u) {
-      const x = new URL(u, window.location.origin);
-      if (PID)   x.searchParams.set('pid', PID);
-      if (ORDER) x.searchParams.set('order', ORDER);
-      return x.pathname + (x.search ? x.search : '');
-    }
+    const u = new URL(window.location.href);
+    const pid = u.searchParams.get('pid') || '';
+    const order = u.searchParams.get('order') || 'route1';
+    const nextUrl = u.searchParams.get('next') || '/';
 
     // Socket.IO client
     const socket = io()
@@ -146,13 +128,32 @@
     }
 
     socket.on('connect', function() {
-      console.log('Connected — joining lobby chat and starting agent…');
+      console.log('[chat] Connected, joining lobby and checking agent...');
       socket.emit('chat:join', { room: 'lobby' });
 
-      // Start the agent (idempotent: if already active it does nothing)
-      socket.emit('agent:start', { context: 'pre-chat' });
-      // info message to user
-      appendSystemMsg('⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
+      // Check if agent is already active
+      fetch('/agent/status')
+        .then(r => r.json())
+        .then(data => {
+          if (data.running) {
+            console.log('[agent] Agent already running, skip start');
+            agentStatus.textContent = '🟢 Agent ready to chat!';
+            agentStatus.className = 'ready';
+            contBtn.disabled = false;
+            sendBtn.disabled = false;
+            appendSystemMsg('Agent is ready! You can now send messages.');
+            input.focus();
+          } else {
+            console.log('[agent] Starting agent...');
+            socket.emit('agent:start', { context: 'chat-start' });
+            appendSystemMsg('⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
+          }
+        })
+        .catch(err => {
+          console.warn('[agent/status] Fetch failed, assume not running');
+          socket.emit('agent:start', { context: 'chat-start-fallback' });
+          appendSystemMsg('⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
+        });
     });
     
     socket.on('chat:joined', function(data) {
@@ -198,7 +199,7 @@
     input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
     
     contBtn.addEventListener('click', function() {
-      window.location.href = NEXT_URL ? withParams(NEXT_URL) : '/';
+      window.location.href = nextUrl;
     });
   </script>
 </body>

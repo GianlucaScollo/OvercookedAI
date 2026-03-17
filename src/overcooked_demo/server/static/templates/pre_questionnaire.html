@@ -28,8 +28,7 @@
     <div class="text-center"><span id="pid" class="pid"></span></div>
 
     <div class="card">
-      <!-- replace src with your actual pre-questionnaire Form link -->
-      <iframe src="https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UQzhFSDZPREI5SVhCMDJYMjVCQVA1V0FGNC4u" allowfullscreen></iframe>
+      <iframe id="formFrame" src="" allowfullscreen></iframe>
       <div class="form-check mt-3">
         <input class="form-check-input" type="checkbox" id="consentCheck">
         <label class="form-check-label" for="consentCheck">
@@ -37,7 +36,7 @@
         </label>
       </div>
       <div class="footer">
-        <button id="goGame" class="btn-cta" disabled>Go to Game</button>
+        <button id="continueBtn" class="btn-cta" disabled>Continue</button>
       </div>
     </div>
   </div>
@@ -45,27 +44,34 @@
   <script>
     const u = new URL(window.location.href);
     const pid = u.searchParams.get('pid') || '';
-    const order = u.searchParams.get('order') || 'cramped_first';
+    const order = u.searchParams.get('order') || 'route1';
+    const nextUrl = u.searchParams.get('next') || '/';
+
+    // Show PID
     document.getElementById('pid').textContent = pid ? `Participant ID: ${pid}` : '';
 
-    const consentCheck = document.getElementById('consentCheck');
-    const goBtn = document.getElementById('goGame');
+    const formUrls = {
+      'route1': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UQzhFSDZPREI5SVhCMDJYMjVCQVA1V0FGNC4u',
+      'route2': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UNzNRTk5LQzFUVjU3OTZQT0daRllZWDdZSS4u'
+    };
 
-    const updateButton = () => { goBtn.disabled = !consentCheck.checked; };
+    const formUrl = formUrls[order] || formUrls['route1'];
+    document.getElementById('formFrame').src = formUrl;
+
+    const consentCheck = document.getElementById('consentCheck');
+    const continueBtn = document.getElementById('continueBtn');
+
+    const updateButton = () => { continueBtn.disabled = !consentCheck.checked; };
     consentCheck.addEventListener('change', updateButton);
     updateButton();
 
-    goBtn.addEventListener('click', function(e) {
+    continueBtn.addEventListener('click', function(e) {
       if (!consentCheck.checked) {
         e.preventDefault();
         alert('Please complete the questionnaire before continuing.');
         return;
       }
-      // redirect to the first layout based on order assignment
-      const next = order === 'cramped_first'
-        ? `/play/cramped_room?time=60&next=/survey/1&pid=${pid}&order=${order}`
-        : `/play/forced_coordination?time=60&next=/survey/1&pid=${pid}&order=${order}`;
-      window.location.href = next;
+      window.location.href = nextUrl;
     });
   </script>
 </body>

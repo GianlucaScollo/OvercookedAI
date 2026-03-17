@@ -22,11 +22,11 @@
 <body>
   <div class="wrap">
     <h1>Survey 1</h1>
-    <p class="sub">Please paste your Participant ID into the first question of the form.</p>
+    <p class="sub">Thanks! Continue to the next block.</p>
     <div class="text-center"><span id="pid" class="pid"></span></div>
 
     <div class="card">
-      <iframe src="https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UOEw4VEFGMzZPOTNCVUswT0ZJS1VZTUZGMS4u" allowfullscreen></iframe>   
+      <iframe id="formFrame" src="" allowfullscreen></iframe>
       <div class="form-check mt-3">
         <input class="form-check-input" type="checkbox" id="consentCheck">
         <label class="form-check-label" for="consentCheck">
@@ -42,8 +42,18 @@
   <script>
     const u = new URL(window.location.href);
     const pid = u.searchParams.get('pid') || '';
-    const order = u.searchParams.get('order') || 'cramped_first';
+    const order = u.searchParams.get('order') || 'route1';
+    const nextUrl = u.searchParams.get('next') || '/';
+    
     document.getElementById('pid').textContent = pid ? `Participant ID: ${pid}` : '';
+
+    const formUrls = {
+      'route1': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UOEw4VEFGMzZPOTNCVUswT0ZJS1VZTUZGMS4u',
+      'route2': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UM0JGM1ZEMks2OUdGWk5IWDBGVjlWMlUwUi4u'
+    };
+
+    const formUrl = formUrls[order] || formUrls['route1'];
+    document.getElementById('formFrame').src = formUrl;
 
     const consentCheck = document.getElementById('consentCheck');
     const continueBtn = document.getElementById('continue');
@@ -52,30 +62,31 @@
     consentCheck.addEventListener('change', updateButton);
     updateButton();
 
-    // After Survey 1 -> Chat -> (same layout as first round) -> Survey 2
-    const sameLayout = (order === 'forced_first') ? 'forced_coordination' : 'cramped_room';
     continueBtn.addEventListener('click', function(e) {
       if (!consentCheck.checked) {
         e.preventDefault();
         alert('Please complete the survey before continuing.');
         return;
       }
-      // redirect to the Chat
-      const inner = `/play/${sameLayout}?time=60&next=${encodeURIComponent('/survey/2?pid=' + pid + '&order=' + order)}&pid=${pid}&order=${order}`;
-      const url = '/chat-room?next=' + encodeURIComponent(inner) + `&pid=${pid}&order=${order}`;
-      window.location.href = url;
+      window.location.href = nextUrl;
     });
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
   <script>
-    // Fallback: extra measure to shutdown the gradle process
     (function() {
       const sock = io();
+
       sock.on('connect', function() {
-        sock.emit('agent:shutdown', { context: 'survey1-page-fallback' });
-        setTimeout(function() { sock.disconnect(); }, 1500);
+        console.log('[survey1] Socket connected - emitting agent:shutdown...');
+        sock.emit('agent:shutdown', { context: 'survey1-page' });
       });
-    });
+
+      setTimeout(function() {
+        if (sock.connected) {
+          sock.disconnect();
+        }
+      }, 2000);
+    })();
   </script>
 </body>
 </html>

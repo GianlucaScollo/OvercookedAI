@@ -3,7 +3,7 @@ import sys
 import json, os, uuid
 from uuid import uuid4
 from flask import render_template, request, abort, redirect, url_for
-
+from urllib.parse import quote
 
 # If FLASK_ENV=production, we use eventlet for concurrency and patch
 # standard Python libraries so they work well with green threads.
@@ -461,141 +461,208 @@ def _create_game(user_id, game_name, params={}):
 #####################
 # Flask HTTP Routes #
 #####################
-# Hitting each of these endpoints creates a brand new socket that is closed
-# at after the server response is received. Standard HTTP protocol
 
-# request/response cycle
-@app.route("/enter")
-def enter():
+# Read the route from environment (route1 or route2)
+ROUTE = os.getenv('ROUTE', 'route1')
+
+# Define the flow for each route
+ROUTE_FLOWS = {
+    'route1': [
+        {'type': 'page', 'route': 'pre_questionnaire', 'params': {}},
+        {'type': 'page', 'route': 'instructions', 'params': {}},
+        {'type': 'game', 'layout': 'cramped_room', 'time': 60},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 1}},
+        {'type': 'chat', 'params': {}},
+        {'type': 'game', 'layout': 'cramped_room', 'time': 60},
+        {'type': 'chat', 'params': {}},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 2}},
+        {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 3}},
+        {'type': 'chat', 'params': {}},
+        {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
+        {'type': 'chat', 'params': {}},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 4}},
+        {'type': 'page', 'route': 'post_questionnaire', 'params': {}},
+        {'type': 'page', 'route': 'finish', 'params': {}},
+    ],
+    'route2': [
+        {'type': 'page', 'route': 'pre_questionnaire', 'params': {}},
+        {'type': 'page', 'route': 'instructions', 'params': {}},
+        {'type': 'chat', 'params': {}},
+        {'type': 'game', 'layout': 'cramped_room', 'time': 60},
+        {'type': 'chat', 'params': {}},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 1}},
+        {'type': 'game', 'layout': 'cramped_room', 'time': 60},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 2}},
+        {'type': 'chat', 'params': {}},
+        {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
+        {'type': 'chat', 'params': {}},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 3}},
+        {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
+        {'type': 'page', 'route': 'survey_n', 'params': {'n': 4}},
+        {'type': 'page', 'route': 'post_questionnaire', 'params': {}},
+        {'type': 'page', 'route': 'finish', 'params': {}},
+    ]
+}
+
+def get_next_step(order, step):
     """
-    Assign the participant to the smaller bucket and redirect to pre-questionnaire
-    with ?pid=...&order=...
+    Get the next step in the route flow.
+    Returns the next route and its parameters.
     """
-    pid = uuid.uuid4().hex[:8]  # short, human-friendly
-    order = assign_order_smaller_bucket()
-    # carry pid/order to pre-questionnaire (they’ll flow through all pages)
-    return redirect(url_for("pre_questionnaire") + f"?pid={pid}&order={order}")
+    # Determine which flow to use (route1 or route2)
+    flow = ROUTE_FLOWS.get(order, ROUTE_FLOWS['route1'])
+    
+    # Get the next step
+    if step >= len(flow):
+        return None, None
+    
+    current = flow[step]
+    return current, step + 1
 
-# --- keep your existing imports & config ---
-@app.route("/results.csv")
-def download_results():
-    _ensure_results_header()
-    return send_file(RESULTS_CSV, as_attachment=True, download_name="game_results.csv")
 
-# added home page route as a new landing page
+@app.route("/next-step")
+def next_step():
+    """
+    Main router that decides the next page based on route flow.
+    Query params: pid, order, step
+    """
+    pid = request.args.get('pid', '')
+    order = request.args.get('order', 'route1')  # ← route1 or route2
+    step = int(request.args.get('step', '0'))
+    
+    current, next_step_num = get_next_step(order, step)
+    
+    if current is None:
+        # Flow ended, go to finish
+        return redirect(f'/finish')
+    
+    # Build the next redirect URL
+    def build_next_url(step_num):
+        if step_num is None:
+            return f'/finish'
+        return f'/next-step?pid={pid}&order={order}&step={step_num}'
+    
+    next_url = build_next_url(next_step_num)
+    next_url_encoded = quote(next_url, safe='')
+
+    # Route based on type
+    if current['type'] == 'page':
+        route_name = current['route']
+        
+        if route_name == 'home':
+            return redirect('/')
+        elif route_name == 'pre_questionnaire':
+            return redirect(url_for('pre_questionnaire') + f'?pid={pid}&order={order}&next={next_url_encoded}')
+        elif route_name == 'instructions':
+            return redirect(url_for('instructions') + f'?pid={pid}&order={order}&next={next_url_encoded}')
+        elif route_name == 'post_questionnaire':
+            return redirect(url_for('post_questionnaire') + f'?pid={pid}&order={order}&next={next_url_encoded}')
+        elif route_name == 'finish':
+            return redirect('/finish')
+        elif route_name == 'survey_n':
+            n = current['params'].get('n', 1)
+            return redirect(url_for('survey_n', n=n) + f'?pid={pid}&order={order}&next={next_url_encoded}')
+    
+    elif current['type'] == 'game':
+        layout = current['layout']
+        time = current['time']
+        return redirect(f'/play/{layout}?time={time}&next={next_url_encoded}&pid={pid}&order={order}')
+    
+    elif current['type'] == 'chat':
+        return redirect(f'/chat-room?next={next_url_encoded}&pid={pid}&order={order}')
+    
+    return redirect('/')
+
+
+# ── HOME PAGE ─────────────────────────────────────────────────────────────
+
 @app.route("/")
 def home():
     return render_template("home.html")
 
-@app.route("/pre-questionnaire")
-def pre_questionnaire():
-    # MS Forms embedded pre-questionnaire
-    return render_template("pre_questionnaire.html")
+# ── ENTRY POINT ───────────────────────────────────────────────────────────
 
-@app.route("/game")
-def game_page():
-    # The gamepage. We pass in the list of agent_names and layouts so that
-    # the user can pick them in the drop-down <select>.
-    return render_template("index.html", layouts=LAYOUTS)
+@app.route("/enter")
+def enter():
+    """
+    Entry point: create a new participant and start the experiment.
+    """
+    pid = uuid.uuid4().hex[:8]  # short, human-friendly
+    # Determine which route based on ROUTE env var
+    order = ROUTE
+    return redirect(f'/next-step?pid={pid}&order={order}&step=0')
 
-@app.route("/post-questionnaire")
-def post_questionnaire():
-    # allow ?next=/finish (or anything you want after post)
-    next_url = request.args.get("next", "/finish")
-    return render_template("post_questionnaire.html", next_url=next_url)
+# ── DOWNLOAD RESULTS/CHAT ─────────────────────────────────────────────────
 
-@app.route("/finish")
-def finish():
-    # thank you page
-    return render_template("finish.html")
-
-@app.route("/chat")
-def chat_alias():
-    return chat_room()
-
-# @app.route("/predefined")
-# def predefined():
-#     # The "predefined" page, which runs multiple layouts in a row
-#     uid = request.args.get("UID")
-#     num_layouts = len(CONFIG["predefined"]["experimentParams"]["layouts"])
-#     return render_template(
-#         "predefined.html",
-#         uid=uid,
-#         config=PREDEFINED_CONFIG,
-#         num_layouts=num_layouts,
-#     )
-
-# 1a) Original multi-layout predefined (kept for completeness)
-@app.route("/predefined")
-def predefined_multi():
-    try:
-        cfg = CONFIG.get("predefined", {})
-        exp = cfg.get("experimentParams", {})
-        num_layouts = len(exp.get("layouts", []))
-        return render_template(
-            "predefined.html",
-            uid=str(uuid4()),
-            config=json.dumps(cfg),
-            num_layouts=num_layouts,
-            next_url=""  # not used in multi-layout
-        )
-    except Exception as e:
-        abort(500, f"predefined_multi error: {e}")
-
-# 1b) Single-layout, locked, with a next redirect
-#     Usage: /pre/<layout>?time=60&next=/survey/1
-@app.route("/pre/<layout>")
-def predefined_single(layout):
-    try:
-        cfg = CONFIG.get("predefined", {}).copy()
-        exp = cfg.get("experimentParams", {}).copy()
-
-        # lock to just this layout
-        exp["layouts"] = [layout]
-        # time override (fallback to predefined default)
-        default_time = CONFIG.get("predefined", {}).get("experimentParams", {}).get("gameTime", 60)
-        exp["gameTime"] = int(request.args.get("time", default_time))
-        # always deterministic order for single layout
-        exp["randomized"] = False
-        # force humans + collect data
-        exp["playerZero"] = "human"
-        exp["playerOne"] = "human"
-        exp["dataCollection"] = "on"
-
-        cfg["experimentParams"] = exp
-
-        next_url = request.args.get("next", "/post-questionnaire")
-
-        return render_template(
-            "predefined.html",
-            uid=str(uuid4()),
-            config=json.dumps(cfg),
-            num_layouts=1,
-            next_url=next_url
-        )
-    except Exception as e:
-        abort(500, f"predefined_single error: {e}")
-
-
-@app.route("/instructions")
-def instructions():
-    # Shows the instructions page. We pass layout_conf to define onion/tomato times, etc.
-    return render_template("instructions.html", layout_conf=LAYOUT_GLOBALS)
-
-@app.route("/tutorial")
-def tutorial():
-    # The tutorial page, which loads TUTORIAL_CONFIG from config.json
-    return render_template("tutorial.html", config=TUTORIAL_CONFIG)
+@app.route("/results.csv")
+def download_results():
+    _ensure_results_header()
+    return send_file(RESULTS_CSV, as_attachment=True, download_name="game_results.csv")
 
 @app.route("/chat.csv")
 def download_chat():
     _ensure_chat_header()
     return send_file(CHAT_CSV, as_attachment=True, download_name="chat_logs.csv")
 
+# ── PRE/POST QUESTIONNAIRE ────────────────────────────────────────────────
 
-# Locked-layout game with auto-join/lobby matching
+@app.route("/pre-questionnaire")
+def pre_questionnaire():
+    pid = request.args.get('pid', '')
+    order = request.args.get('order', 'route1')
+    next_url = request.args.get('next', '/finish')
+    
+    return render_template(
+        "pre_questionnaire.html", 
+        pid=pid,
+        order=order,
+        next_url=next_url
+    )
+
+@app.route("/post-questionnaire")
+def post_questionnaire():
+    pid = request.args.get('pid', '')
+    order = request.args.get('order', 'route1')
+    next_url = request.args.get('next', '/finish')
+    
+    return render_template(
+        "post_questionnaire.html",
+        pid=pid,
+        order=order,
+        next_url=next_url
+    )
+
+# ── FINISH ───────────────────────────────────────────────────────────────
+
+@app.route("/finish")
+def finish():
+    # thank you page
+    return render_template("finish.html")
+
+# ── INSTRUCTIONS ─────────────────────────────────────────────────────────
+
+@app.route("/instructions")
+def instructions():
+    pid = request.args.get('pid', '')
+    order = request.args.get('order', 'route1')
+    next_url = request.args.get('next', '/finish')
+    
+    return render_template(
+        "instructions.html",
+        layout_conf=LAYOUT_GLOBALS,
+        pid=pid,
+        order=order,
+        next_url=next_url
+    )
+
+# ── PLAY LAYOUT ──────────────────────────────────────────────────────────
+
 @app.route("/play/<layout>")
 def play_locked(layout):
+    pid = request.args.get('pid', '')
+    order = request.args.get('order', 'route1')
+    
     # default time from config, but overridable via ?time=XX
     default_time = CONFIG.get("predefined", {}).get("experimentParams", {}).get("gameTime", 60)
     locked_time = int(request.args.get("time", default_time))
@@ -608,71 +675,53 @@ def play_locked(layout):
         locked_layout=layout,
         locked_time=locked_time,
         auto_join=False,
-        next_url=next_url
+        next_url=next_url,
+        pid=pid,
+        order=order
     )
 
+# ── SURVEY ──────────────────────────────────────────────────────────────
 
 @app.route("/survey/<int:n>")
 def survey_n(n):
+    pid = request.args.get('pid', '')
+    order = request.args.get('order', 'route1')
+    next_url = request.args.get('next')
+    
     tmpl = f"survey{n}.html"
     if not os.path.exists(os.path.join(app.template_folder or "templates", tmpl)):
         abort(404)
-    next_url = request.args.get("next")  # <-- carry chain forward
-    return render_template(tmpl, next_url=next_url)
+    
+    return render_template(
+        tmpl, 
+        pid=pid,
+        order=order,
+        next_url=next_url
+    )
 
-# Simple chat room between rounds
+# ── CHAT-ROOM ───────────────────────────────────────────────────────────
+
 @app.route("/chat-room")
 def chat_room():
-    # If you want to pass a 'next' param: /chat-room?next=/play/forced_coordination?next=/survey/2
     next_url = request.args.get("next", "/")
-    return render_template("chat_room.html", next_url=next_url)
+    pid = request.args.get('pid', '')
+    order = request.args.get('order', 'route1')
+    
+    return render_template(
+        "chat_room.html", 
+        next_url=next_url, 
+        pid=pid, 
+        order=order
+    )
 
-@app.route("/debug")
-def debug():
-    """
-    A debug endpoint that returns a JSON of all relevant server state:
-      - active games
-      - waiting games
-      - free IDs
-      - user->room mappings
-    """
-    resp = {}
-    games = []
-    active_games = []
-    waiting_games = []
-    users = []
-    free_ids = []
-    free_map = {}
+# ── AGENT STATUS ────────────────────────────────────────────────────────
 
-    for game_id in ACTIVE_GAMES:
-        game = get_game(game_id)
-        active_games.append({"id": game_id, "state": game.to_json()})
+@app.route("/agent/status")
+def agent_status():
+    global _agent_process
+    is_running = _agent_process is not None and _agent_process.poll() is None
+    return jsonify({"running": is_running})
 
-    for game_id in list(WAITING_GAMES.queue):
-        game = get_game(game_id)
-        game_state = None if FREE_MAP[game_id] else game.to_json()
-        waiting_games.append({"id": game_id, "state": game_state})
-
-    for game_id in GAMES:
-        games.append(game_id)
-
-    for user_id in USER_ROOMS:
-        users.append({user_id: get_curr_room(user_id)})
-
-    for game_id in list(FREE_IDS.queue):
-        free_ids.append(game_id)
-
-    for game_id in FREE_MAP:
-        free_map[game_id] = FREE_MAP[game_id]
-
-    resp["active_games"] = active_games
-    resp["waiting_games"] = waiting_games
-    resp["all_games"] = games
-    resp["users"] = users
-    resp["free_ids"] = free_ids
-    resp["free_map"] = free_map
-
-    return jsonify(resp)
 
 
 ############################
@@ -967,12 +1016,6 @@ def handle_chat_send(data):
 def on_agent_start(data):
     print(f"[server] agent:start (context={data.get('context','?')})")
     start_symbolic_agent()
-
-@app.route("/agent/status")
-def agent_status():
-    global _agent_process
-    is_running = _agent_process is not None and _agent_process.poll() is None
-    return jsonify({"running": is_running})
 
 @socketio.on("agent:shutdown")
 def on_agent_shutdown(data):

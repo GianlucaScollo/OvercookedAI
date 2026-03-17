@@ -15,7 +15,8 @@ services:
             FLASK_ENV: "${BUILD_ENV:-production}"
             SYMBOLIC_AGENT_DIR: "/app/SymbolicAIAgent"
             OLLAMA_HOST: "http://host.docker.internal:11434"
-            DEBUG_KQML: "true"  # or "false" <- flag for showing kqml message during the chat phase
+            DEBUG_KQML: "true"  # or "false" # <- flag to enable debug logging of KQML messages from the symbolic agent (during chat phase)
+            ROUTE: "route1"  # or "route2" <- flag to select flow variant (route1, route2, etc.)
         ports:
             - "80:5000"
         extra_hosts:

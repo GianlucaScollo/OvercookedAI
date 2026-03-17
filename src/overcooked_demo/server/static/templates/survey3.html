@@ -26,7 +26,7 @@
     <div class="text-center"><span id="pid" class="pid"></span></div>
 
     <div class="card">
-      <iframe src="https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UQkxXUUhWSVpUVUI1S0Y1UUw5TkRKQ1pNMi4u" allowfullscreen></iframe>
+      <iframe id="formFrame" src="" allowfullscreen></iframe>
       <div class="form-check mt-3">
         <input class="form-check-input" type="checkbox" id="consentCheck">
         <label class="form-check-label" for="consentCheck">
@@ -42,8 +42,18 @@
   <script>
     const u = new URL(window.location.href);
     const pid = u.searchParams.get('pid') || '';
-    const order = u.searchParams.get('order') || 'cramped_first';
+    const order = u.searchParams.get('order') || 'route1';
+    const nextUrl = u.searchParams.get('next') || '/';
+    
     document.getElementById('pid').textContent = pid ? `Participant ID: ${pid}` : '';
+
+    const formUrls = {
+      'route1': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UQkxXUUhWSVpUVUI1S0Y1UUw5TkRKQ1pNMi4u',
+      'route2': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UNzIxVlY1S1NBTEI5QzlIVTMwVVVIRlpBRy4u'
+    };
+
+    const formUrl = formUrls[order] || formUrls['route1'];
+    document.getElementById('formFrame').src = formUrl;
 
     const consentCheck = document.getElementById('consentCheck');
     const continueBtn = document.getElementById('continue');
@@ -52,30 +62,31 @@
     consentCheck.addEventListener('change', updateButton);
     updateButton();
 
-    // After Survey 3 -> Chat -> (same "other" layout) -> Survey 4
-    const otherLayout = (order === 'forced_first') ? 'cramped_room' : 'forced_coordination';
     continueBtn.addEventListener('click', function(e) {
       if (!consentCheck.checked) {
         e.preventDefault();
         alert('Please complete the survey before continuing.');
         return;
       }
-      // redirect to the Chat
-      const inner = `/play/${otherLayout}?time=60&next=${encodeURIComponent('/survey/4?pid=' + pid + '&order=' + order)}&pid=${pid}&order=${order}`;
-      const url = '/chat-room?next=' + encodeURIComponent(inner) + `&pid=${pid}&order=${order}`;
-      window.location.href = url;
+      window.location.href = nextUrl;
     });
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
   <script>
-    // Fallback: extra measure to shutdown the gradle process
     (function() {
       const sock = io();
+
       sock.on('connect', function() {
-        sock.emit('agent:shutdown', { context: 'survey3-page-fallback' });
-        setTimeout(function() { sock.disconnect(); }, 1500);
+        console.log('[survey3] Socket connected - emitting agent:shutdown...');
+        sock.emit('agent:shutdown', { context: 'survey3-page' });
       });
-    });
+
+      setTimeout(function() {
+        if (sock.connected) {
+          sock.disconnect();
+        }
+      }, 2000);
+    })();
   </script>
 </body>
 </html>
