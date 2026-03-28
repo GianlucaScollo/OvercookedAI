@@ -17,11 +17,9 @@
     .grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; }
     @media (max-width: 992px) { .grid { grid-template-columns: 1fr; } }
     #chat-box { height: 58vh; overflow-y:auto; background: rgba(2,6,23,.35); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: .75rem; }
-    .msg { margin-bottom: .35rem; font-size: 14px; line-height: 1.35; }
-    .me { font-weight: 700; }
-    .input-row { display:flex; gap:10px; margin-top:10px; }
-    #chat-input { flex:1; border-radius:12px; border:1px solid rgba(255,255,255,.2); background:rgba(2,6,23,.45); color:var(--text); padding:10px 12px; }
-    .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; }
+    .input-row { display:flex; gap:10px; margin-top:10px; width: 100%; }
+    #chat-input { flex:1; border-radius:12px; border:1px solid rgba(255,255,255,.2); background:rgba(2,6,23,.45); color:var(--text); padding:10px 12px; min-height: 40px; }
+    .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; white-space: nowrap; }
     .helper h5 { font-weight:700; margin-bottom:8px; }
     .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); }
     .footer-actions { text-align:right; margin-top: 12px; }
@@ -33,8 +31,26 @@
     /* Typing indicator */
     .typing-indicator { font-size: 13px; color: var(--muted); font-style: italic; padding: 4px 6px; display: none; }
     .typing-indicator.visible { display: block; }
-    /* System message (info to the user) */
-    .msg.system-info { color: var(--muted); font-style: italic; font-size: 13px; }
+    /* message base */
+    .msg { margin-bottom: .75rem; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; gap: 4px; }
+    .msg-bubble { padding: 10px 12px; border-radius: 10px; word-wrap: break-word; overflow-wrap: break-word; width: fit-content; }
+    .msg-sender { font-weight: 700; font-size: 12px; color: var(--muted); padding: 0 2px; }
+    /* user message - left side */
+    .msg.user { align-items: flex-start; }
+    .msg.user .msg-bubble { background-color: #ddf8c6; color: #081223; font-weight: 500; max-width: 80%; }
+    /* agent message - right side */
+    .msg.agent { align-items: flex-end; }
+    .msg.agent .msg-bubble { background-color: #add8e6; color: #081223; font-weight: 500; max-width: 80%; }
+    /* system message (warning, error, system) - center */
+    .msg.system, .msg.warning, .msg.error { align-items: center; width: 100%; }
+    .msg.system .msg-sender, .msg.warning .msg-sender, .msg.error .msg-sender { display: none; }
+    .msg.system .msg-bubble, .msg.warning .msg-bubble, .msg.error .msg-bubble { max-width: 90%; text-align: center; font-style: italic; }
+    /* System - Gray */
+    .msg.system .msg-bubble { background-color: rgba(255,255,255,.08); color: var(--muted); font-size: 13px; }
+    /* Warning - Yellow */
+    .msg.warning .msg-bubble { background-color: #fff599; color: #663c00; border-left: 4px solid #facc15; }
+    /* Error - Red */
+    .msg.error .msg-bubble { background-color: #ea8a94; color: #fff; border-left: 4px solid #ef4444; }
   </style>
 </head>
 <body>
@@ -48,9 +64,10 @@
       <div class="card-pane">
         <div id="chat-box" aria-live="polite"></div>
 
-        <!-- Typing indicator -->
+        <!-- Typing indicator: shown when agent is responding -->
         <div id="typing-indicator" class="typing-indicator">staychef is typing…</div>
 
+        <!-- Message input section -->
         <div class="input-row">
           <input id="chat-input" type="text" placeholder="Type your message…" autocomplete="off">
           <button id="sendBtn" class="btn-send" disabled>Send</button>
@@ -75,6 +92,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
 
   <script>
+    // URL parameters extraction
     const u = new URL(window.location.href);
     const pid = u.searchParams.get('pid') || '';
     const order = u.searchParams.get('order') || 'route1';
@@ -90,24 +108,101 @@
     const agentStatus = document.getElementById('agent-status');
     const typingIndicator = document.getElementById('typing-indicator');
 
-    function appendMsg(sender, text) {
-      const div = document.createElement('div');
-      div.className = 'msg';
-      div.innerHTML = `<span class="${sender === 'me' ? 'me' : ''}">${sender}:</span> ${text}`;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-    
-    function appendSystemMsg(text) {
-      const div = document.createElement('div');
-      div.className = 'msg system-info';
-      div.textContent = text;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
+
+    /**
+    * Message pattern - Centralizes all message creation logic and type inference
+    * - Infer message type from sender and content
+    * - Create properly styled DOM elements and append it to chat box
+    */
+    const Message = {
+      /**
+       * method that creates and displays a message
+       * @param {string} sender - who sent the message
+       * @param {string} text - message content
+       * @param {string|null} explicitType - override auto-detection (optional)
+       * @returns {object} {type, element} - message type and DOM element
+       */
+      create(sender, text, explicitType = null) {
+        // Use explicit type if provided, otherwise infer from sender/content
+        let type = explicitType || this._inferType(sender, text);
+        
+        // Create the DOM element
+        const msgEl = this._createDOM(sender, text, type);
+        
+        chatBox.appendChild(msgEl);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        return { type, element: msgEl };
+      },
+
+      /**
+       * Infers message type based on sender name and content
+       * @param {string} sender - sender identifier
+       * @param {string} text - message content
+       * @returns {string} - message type: 'user'|'agent'|'system'|'warning'|'error'
+       */
+      _inferType(sender, text) {
+        const senderLower = (sender || '').toLowerCase();
+        const textLower = (text || '').toLowerCase();
+
+        // For 'system' sender, infer type from content
+        if (senderLower === 'system') {
+          if (textLower.includes('error:')) return 'error';
+          if (textLower.includes('warning:')) return 'warning';
+          return 'system';
+        }
+
+        if (senderLower === 'me' || senderLower === 'user') return 'user';
+        
+        return 'agent'; // default
+      },
+
+      /**
+       * Creates the DOM structure for a message
+       * System-level messages: centered bubble only
+       * User/Agent messages: sender name + bubble
+       * @param {string} sender - sender name/identifier
+       * @param {string} text - message text
+       * @param {string} type - message type (applies CSS class)
+       * @returns {HTMLElement} - complete message element
+       */
+      _createDOM(sender, text, type) {
+        const div = document.createElement('div');
+        div.className = `msg ${type}`;
+
+        // System messages
+        if (type === 'system' || type === 'error' || type === 'warning') {
+          const bubble = document.createElement('div');
+          bubble.className = 'msg-bubble';
+          bubble.textContent = text;
+          div.appendChild(bubble);
+        } else {
+          // User/Agent
+          const senderDiv = document.createElement('div');
+          senderDiv.className = 'msg-sender';
+          senderDiv.textContent = sender;
+
+          const bubble = document.createElement('div');
+          bubble.className = 'msg-bubble';
+          bubble.textContent = text;
+
+          div.appendChild(senderDiv);
+          div.appendChild(bubble);
+        }
+
+        return div;
+      }
+    };
+
+    // Unified interface for adding messages to chat
+    function handleMessage(sender, text, type = null) {
+      Message.create(sender, text, type);
     }
 
     let typingTimeout = null;
 
+    // Display typing indicator with 30-second auto-hide timeout
+    // Called when user sends a message
     function showTyping() {
       typingIndicator.classList.add('visible');
       chatBox.scrollTop = chatBox.scrollHeight;
@@ -119,6 +214,8 @@
       }, 30000);
     }
 
+    // Hide typing indicator and clear any pending timeout
+    // Called only when agent or error message arrives
     function hideTyping() {
       typingIndicator.classList.remove('visible');
       if (typingTimeout) {
@@ -127,66 +224,82 @@
       }
     }
 
+    // Handle initial connection to Socket.IO server
+    // Check if agent is already running, or start it
     socket.on('connect', function() {
       console.log('[chat] Connected, joining lobby and checking agent...');
       socket.emit('chat:join', { room: 'lobby' });
 
-      // Check if agent is already active
+      // Check if agent is already active to avoid redundant startup
       fetch('/agent/status')
         .then(r => r.json())
         .then(data => {
           if (data.running) {
+            // Agent already running: skip startup and enable UI
             console.log('[agent] Agent already running, skip start');
             agentStatus.textContent = '🟢 Agent ready to chat!';
             agentStatus.className = 'ready';
             contBtn.disabled = false;
             sendBtn.disabled = false;
-            appendSystemMsg('Agent is ready! You can now send messages.');
+            handleMessage('system','Agent is ready! You can now send messages.');
             input.focus();
           } else {
+            // Agent not running: start it
             console.log('[agent] Starting agent...');
             socket.emit('agent:start', { context: 'chat-start' });
-            appendSystemMsg('⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
+            handleMessage('system','⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
           }
         })
         .catch(err => {
+          // Fetch failed: fallback to starting agent
           console.warn('[agent/status] Fetch failed, assume not running');
           socket.emit('agent:start', { context: 'chat-start-fallback' });
-          appendSystemMsg('⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
+          handleMessage('system','⏳ Please wait — the AI agent is starting up. Send will be enabled shortly.');
         });
     });
     
     socket.on('chat:joined', function(data) {
       console.log('Joined chat room:', data.room);
-      //appendMsg('system', 'You joined the chat lobby.');
+      //handleMessage('system', 'You joined the chat lobby.');
     });
 
+    // Agent ready event: enable sending
     socket.on('agent:chat_ready', function() {
         agentStatus.textContent = '🟢 Agent ready to chat!';
         agentStatus.className = 'ready';
         contBtn.disabled = false;
         sendBtn.disabled = false;
-        appendSystemMsg('Agent is ready! You can now send messages.');
+        handleMessage('system','Agent is ready! You can now send messages.');
         input.focus();
     });
 
+    // Handle incoming messages from agent or system
     socket.on('chat:message', function(payload) {
       const msg = (payload && payload.message) || '';
       const sender = (payload && payload.sender) || 'partner';
-      hideTyping();
-      sendBtn.disabled = false;
-      input.focus();
-      if (sender.toLowerCase() === 'system')
-        appendSystemMsg(msg);
-      else
-        appendMsg(sender, msg);
+
+      // Infer message type to decide on typing indicator behavior
+      const msgType = Message._inferType(sender, msg);
+      
+      // Only hide typing for agent responses or errors
+      // Allow typing to persist through warnings and system messages
+      if (msgType === 'agent' || msgType === 'error') {
+        hideTyping();
+        sendBtn.disabled = false;
+        input.focus();
+      }
+      // For warning/system/KQML: keep typing indicator visible
+
+      // Display the message
+      handleMessage(sender, msg, msgType);
     });
 
+    // Handle user message submission (Enter key or Send button click)
     function send() {
       const msg = (input.value || '').trim();
       if (!msg) return;
       socket.emit('chat:send', {sender: 'user', message: msg});
-      appendMsg('me', msg);
+      handleMessage('me', msg);
       input.value = '';
       input.focus();
       if (agentStatus.classList.contains('ready')) {
