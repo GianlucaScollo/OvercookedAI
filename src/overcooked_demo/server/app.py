@@ -193,20 +193,12 @@ def start_symbolic_agent():
     agent_dir = os.path.abspath(_AGENT_DIR)
     print(f"[agent] Starting symbolic agent in: {agent_dir}")
     
-    debug_kqml = os.getenv('DEBUG_KQML', 'false').lower() == 'true'
-    print(f"[agent] DEBUG_KQML={debug_kqml}")
-
-    env = os.environ.copy()
-    env['DEBUG_KQML'] = str(debug_kqml).lower()
-    env['ORG_GRADLE_PROJECT_debugKqml'] = str(debug_kqml).lower()
-    
     try:
         _agent_process = subprocess.Popen(
             ["gradle", "run"],
             cwd=agent_dir,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            env=env
+            stderr=subprocess.STDOUT
         )
         print(f"[agent] Agent started (PID {_agent_process.pid})")
 
@@ -981,6 +973,9 @@ def on_chat_join(data):
         print(f"[CHAT] on_chat_join fallback (no lock): {e}", file=sys.stderr)
 
 
+# flag used to forward the KQML translation received from the interpreter to the web chat
+DEBUG_KQML = os.getenv('DEBUG_KQML', 'false').lower() == 'true'
+
 @socketio.on("chat:send")
 def handle_chat_send(data):
     message = (data or {}).get("message", "").strip()
@@ -995,10 +990,17 @@ def handle_chat_send(data):
 
     sender = (data or {}).get("sender", "").strip()
     payload = {"sender": sender, "message": message}
-    
-    # Broadcast of the message recevied
-    emit("chat:message", payload, broadcast=True, include_self=False)
 
+    # check if the message is a KQML translation
+    is_kqml = "[kqml]" in message.lower()
+
+    if ((DEBUG_KQML) or (not is_kqml)):
+        # Broadcast of the message recevied
+        emit("chat:message", payload, broadcast=True, include_self=False)
+    else:
+        # In case DEBUG_KQML=False and the message is_kqml don't send it 
+        print(f"[CHAT:SEND] Filtered KQML (DEBUG_KQML=False): {message[:50]}...", file=sys.stderr)
+    
     # Log it
     _append_chat_row([
         datetime.utcnow().isoformat(timespec="seconds") + "Z",
