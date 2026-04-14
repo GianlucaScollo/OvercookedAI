@@ -10,15 +10,30 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
   <style>
     :root{--bg:#0f172a;--text:#e2e8f0;--muted:#94a3b8;--a1:#22d3ee;--a2:#a78bfa;--panel:rgba(255,255,255,.06);--brd:rgba(255,255,255,.12)}
-    html,body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100%}
+    html,body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100%}
     .wrap{max-width:960px;margin:28px auto 48px;padding:0 14px}
     h1{font-weight:800;letter-spacing:-.01em;margin-bottom:6px;text-align:center}
     p.sub{color:var(--muted);text-align:center;margin-bottom:14px}
     .pid{background:var(--panel);border:1px solid var(--brd);border-radius:10px;padding:8px 12px;display:inline-block;margin:0 auto 12px;font-weight:600}
     .card{background:var(--panel);border:1px solid var(--brd);border-radius:14px;padding:16px}
-    iframe{width:100%;min-height:560px;border:0;border-radius:12px;background:#fff}
-    .btn-cta{background:linear-gradient(90deg,var(--a1),var(--a2));border:0;border-radius:12px;padding:12px 18px;font-weight:700;color:#081223}
-    .footer{text-align:right;margin-top:14px}
+    .btn-cta{background:linear-gradient(90deg,var(--a1),var(--a2));border:0;border-radius:12px;padding:12px 18px;font-weight:700;color:#081223;cursor:pointer;width:100%}
+    .btn-cta:disabled{opacity:0.5;cursor:not-allowed}
+    /* Form styles */
+    .form-group{margin-bottom:20px}
+    .form-label{font-weight:600;margin-bottom:8px;display:block;color:var(--text)}
+    .form-control{background:rgba(2,6,23,.45);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:var(--text);padding:10px 12px}
+    .form-control:focus{border-color:var(--a1);background:rgba(2,6,23,.45);color:var(--text);box-shadow:0 0 0 2px rgba(34,211,238,.1)}
+    #surveyForm {margin-top: 16px;}
+    /* Radio group styles */
+    .radio-group{display:flex;flex-direction:column;gap:12px}
+    .radio-item{display:flex;align-items:center;padding:10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,.12);transition:all 0.2s}
+    .radio-item:hover{border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.03)}
+    .radio-item input{margin-right:10px;cursor:pointer}
+    /* Status messages */
+    .status-message{padding:12px;margin-bottom:24px;border-radius:8px;font-size:14px;display:none}
+    .status-message.info{background:rgba(34,211,238,.15);color:#22d3ee;border:1px solid rgba(34,211,238,.3);display:block}
+    .status-message.success{background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.3);display:block}
+    .status-message.error{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);display:block}
   </style>
 </head>
 <body>
@@ -28,16 +43,152 @@
     <div class="text-center"><span id="pid" class="pid"></span></div>
 
     <div class="card">
-      <iframe id="formFrame" src="" allowfullscreen></iframe>
-      <div class="form-check mt-3">
-        <input class="form-check-input" type="checkbox" id="consentCheck">
-        <label class="form-check-label" for="consentCheck">
-          I confirm i have completed the pre-questionnaire and am ready to start the game.
-        </label>
-      </div>
-      <div class="footer">
-        <button id="continueBtn" class="btn-cta" disabled>Continue</button>
-      </div>
+      <!-- Survey Form -->
+      <form id="surveyForm">
+        <!-- question 1 -->
+        <div class="form-group" data-question-num="1">
+          <label class="form-label">1. What is your age group?</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="q1" value="18-24" required> 18-24
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q1" value="25-34"> 25-34
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q1" value="35-44"> 35-44
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q1" value="45-54"> 45-54
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q1" value="55-64"> 55-64
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q1" value="65+"> 65+
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q1" value="PreferNotToSay"> Prefer not to say
+            </label>
+          </div>
+        </div>
+        
+        <!-- question 2 -->
+        <div class="form-group" data-question-num="2">
+          <label class="form-label">2. What is your gender?</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="q2" value="Woman" required> Woman
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q2" value="Man"> Man
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q2" value="Non-binary"> Non-binary
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q2" value="PreferNotToSay"> Prefer not to say
+            </label>
+          </div>
+        </div>
+        
+        <!-- question 3 -->
+        <div class="form-group" data-question-num="3">
+          <label class="form-label">3. Are you a native speaker?</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="q3" value="Yes" required> Yes
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q3" value="No"> No
+            </label>
+          </div>
+        </div>
+
+        <!-- question 4 -->
+        <div class="form-group" data-question-num="4">
+          <label class="form-label">4. What is your English language level?</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="q4" value="Beginner" required> Beginner
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q4" value="Intermediate"> Intermediate
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q4" value="Advanced"> Advanced
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q4" value="Native"> Native
+            </label>
+          </div>
+        </div>
+
+        <!-- question 5 -->
+        <div class="form-group" data-question-num="5">
+          <label class="form-label">5. How would you rate your video game skill level?</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="q5" value="VeryPoor" required> Very poor
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q5" value="Poor"> Poor
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q5" value="Acceptable"> Acceptable
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q5" value="Good"> Good
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q5" value="VeryGood"> Very good
+            </label>
+          </div>
+        </div>
+
+        <!-- question 6 -->
+        <div class="form-group" data-question-num="6">
+          <label class="form-label">6. How frequently do you play cooperative video games that require collaborative strategy?</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="q6" value="Never" required> Never
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q6" value="Rarely"> Rarely
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q6" value="Occasionally"> Occasionally
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q6" value="Frequently"> Frequently
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q6" value="VeryFrequently"> Very frequently
+            </label>
+          </div>
+        </div>
+
+        <!-- question 7 -->
+        <div class="form-group" data-question-num="7">
+          <label class="form-label">7. Have you played the Overcooked! video game before?</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="q7" value="Yes" required> Yes
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q7" value="No"> No
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="q7" value="NotPlayed"> Have heard of it, but not played it
+            </label>
+          </div>
+        </div>
+
+        <!-- Submit button -->
+        <button type="submit" class="btn-cta">Submit Questionnaire</button>
+      </form>
+      <!-- Status Message -->
+      <div id="statusMessage" class="status-message"></div>
     </div>
   </div>
 
@@ -46,32 +197,71 @@
     const pid = u.searchParams.get('pid') || '';
     const order = u.searchParams.get('order') || 'route1';
     const nextUrl = u.searchParams.get('next') || '/';
-
-    // Show PID
+    
     document.getElementById('pid').textContent = pid ? `Participant ID: ${pid}` : '';
 
-    const formUrls = {
-      'route1': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UQzhFSDZPREI5SVhCMDJYMjVCQVA1V0FGNC4u',
-      'route2': 'https://forms.office.com/Pages/ResponsePage.aspx?id=JbCH58Y_AkiHSpyYh2j4kgFa8Kcsj6dCsld_68bJub9UNzNRTk5LQzFUVjU3OTZQT0daRllZWDdZSS4u'
-    };
+    function showMessage(message, type = 'info') {
+      const el = document.getElementById('statusMessage');
+      el.className = `status-message ${type}`;
+      el.textContent = message;
+    }
 
-    const formUrl = formUrls[order] || formUrls['route1'];
-    document.getElementById('formFrame').src = formUrl;
+    // API submission
+    async function submitSurveyData(surveyData) {
+      try {
+        const response = await fetch('/api/survey/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(surveyData)
+        });
 
-    const consentCheck = document.getElementById('consentCheck');
-    const continueBtn = document.getElementById('continueBtn');
-
-    const updateButton = () => { continueBtn.disabled = !consentCheck.checked; };
-    consentCheck.addEventListener('change', updateButton);
-    updateButton();
-
-    continueBtn.addEventListener('click', function(e) {
-      if (!consentCheck.checked) {
-        e.preventDefault();
-        alert('Please complete the questionnaire before continuing.');
-        return;
+        const result = await response.json();
+        console.log('[API Response]:', result);
+        
+        return result.status === 'ok';
+      } catch (error) {
+        console.error('[API Error]:', error);
+        return false;
       }
-      window.location.href = nextUrl;
+    }
+
+    // surveyForm submission handler
+    document.getElementById('surveyForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      // Collect form data
+      const formData = new FormData(this);
+      const responses = {};
+      
+      for (let [key, value] of formData.entries()) {
+        responses[key] = value;
+      }
+
+      // Prepare payload
+      const surveyData = {
+        pid: pid,
+        route: order,
+        survey_type: 'pre_questionnaire',
+        responses: responses
+      };
+
+      console.log('[Pre-Questionnaire Submission]:', surveyData);
+      showMessage('Submitting pre-questionnaire...', 'info');
+
+      // Submit to backend
+      const success = await submitSurveyData(surveyData);
+
+      if (success) {
+        showMessage('Pre-Questionnaire submitted! Redirecting...', 'success');
+        document.getElementById('surveyForm').style.opacity = '0.5';
+        document.getElementById('surveyForm').style.pointerEvents = 'none';
+        
+        setTimeout(() => {
+        window.location.href = nextUrl;
+        }, 2000);
+      } else {
+        showMessage('Failed to to submit pre-questionnaire.. Please try again.', 'error');
+      }
     });
   </script>
 </body>

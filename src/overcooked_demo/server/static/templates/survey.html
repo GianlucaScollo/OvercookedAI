@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Post-Questionnaire</title>
+  <title>Survey</title>
   <link rel="stylesheet"
         href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
         crossorigin="anonymous">
@@ -20,6 +20,7 @@
     .btn-cta:disabled{opacity:0.5;cursor:not-allowed}
     /* Form styles */
     .form-group{margin-bottom:20px}
+    .form-group.hidden{display: none;}
     .form-label{font-weight:600;margin-bottom:8px;display:block;color:var(--text)}
     .form-control{background:rgba(2,6,23,.45);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:var(--text);padding:10px 12px}
     .form-control:focus{border-color:var(--a1);background:rgba(2,6,23,.45);color:var(--text);box-shadow:0 0 0 2px rgba(34,211,238,.1)}
@@ -38,8 +39,8 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Post-Questionnaire</h1>
-    <p class="sub">Final feedback form.</p>
+    <h1 id="surveyTitle">Survey</h1>
+    <p class="sub" id="surveySubtitle">Please complete this survey</p>
     <div class="text-center"><span id="pid" class="pid"></span></div>
 
     <div class="card">
@@ -47,128 +48,82 @@
       <form id="surveyForm">
         <!-- question 1 -->
         <div class="form-group" data-question-num="1">
-          <label class="form-label">1. Overall, the agent was an effective collaborator?</label>
+          <label class="form-label">1. How well did the agent collaborate with you?</label>
           <div class="radio-group">
             <label class="radio-item">
-              <input type="radio" name="q1" value="StronglyDisagree" required> Strongly disagree
+              <input type="radio" name="q1" value="VeryBadly" required> Very badly
             </label>
             <label class="radio-item">
-              <input type="radio" name="q1" value="Disagree"> Disagree
+              <input type="radio" name="q1" value="Badly"> Badly
             </label>
             <label class="radio-item">
-              <input type="radio" name="q1" value="Neither"> Neither agree nor disagree
+              <input type="radio" name="q1" value="Average"> Average
             </label>
             <label class="radio-item">
-              <input type="radio" name="q1" value="Agree"> Agree
+              <input type="radio" name="q1" value="Well"> Well
             </label>
             <label class="radio-item">
-              <input type="radio" name="q1" value="StronglyAgree"> Strongly agree
+              <input type="radio" name="q1" value="VeryWell"> Very well
             </label>
           </div>
         </div>
         
         <!-- question 2 -->
         <div class="form-group" data-question-num="2">
-          <label class="form-label">2. Using the chat helped me understand the agent’s reasoning?</label>
+        <label class="form-label">2. Who do you think was the better collaborator?</label>
           <div class="radio-group">
             <label class="radio-item">
-              <input type="radio" name="q2" value="StronglyDisagree" required> Strongly disagree
+              <input type="radio" name="q2" value="Me" required> Me
             </label>
             <label class="radio-item">
-              <input type="radio" name="q2" value="Disagree"> Disagree
+              <input type="radio" name="q2" value="TheAgent"> The agent
             </label>
             <label class="radio-item">
-              <input type="radio" name="q2" value="Neither"> Neither agree nor disagree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q2" value="Agree"> Agree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q2" value="StronglyAgree"> Strongly agree
+              <input type="radio" name="q2" value="Both"> Both
             </label>
           </div>
         </div>
         
         <!-- question 3 -->
         <div class="form-group" data-question-num="3">
-          <label class="form-label">3. Using the chat improved my collaboration with the agent?</label>
+          <label class="form-label">3. How satisfied were you with the explanations given by the agent?</label>
           <div class="radio-group">
             <label class="radio-item">
-              <input type="radio" name="q3" value="StronglyDisagree" required> Strongly disagree
+              <input type="radio" name="q3" value="VeryDissatisfied" required> Very dissatisfied
             </label>
             <label class="radio-item">
-              <input type="radio" name="q3" value="Disagree"> Disagree
+              <input type="radio" name="q3" value="Dissatisfied"> Dissatisfied
             </label>
             <label class="radio-item">
-              <input type="radio" name="q3" value="Neither"> Neither agree nor disagree
+              <input type="radio" name="q3" value="Neither"> Neither satisfied nor dissatisfied
             </label>
             <label class="radio-item">
-              <input type="radio" name="q3" value="Agree"> Agree
+              <input type="radio" name="q3" value="Satisfied"> Satisfied
             </label>
             <label class="radio-item">
-              <input type="radio" name="q3" value="StronglyAgree"> Strongly agree
+              <input type="radio" name="q3" value="VerySatisfied"> Very satisfied
             </label>
           </div>
         </div>
 
         <!-- question 4 -->
         <div class="form-group" data-question-num="4">
-          <label class="form-label">4. After using the chat, I felt I understood the agent better.</label>
+          <label class="form-label">4. How effective was the pre-game discussion of the cooperation strategies?</label>
           <div class="radio-group">
             <label class="radio-item">
-              <input type="radio" name="q4" value="StronglyDisagree" required> Strongly disagree
+              <input type="radio" name="q4" value="CooperationWorsened" required> Cooperation worsened
             </label>
             <label class="radio-item">
-              <input type="radio" name="q4" value="Disagree"> Disagree
+              <input type="radio" name="q4" value="NothingChanged"> Nothing changed
             </label>
             <label class="radio-item">
-              <input type="radio" name="q4" value="Neither"> Neither agree nor disagree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q4" value="Agree"> Agree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q4" value="StronglyAgree"> Strongly agree
+              <input type="radio" name="q4" value="CooperationImproved"> Cooperation improved
             </label>
           </div>
-        </div>
-
-        <!-- question 5 -->
-        <div class="form-group" data-question-num="5">
-          <label class="form-label">5. I would prefer to play with the agent with the chat rather than without it</label>
-          <div class="radio-group">
-            <label class="radio-item">
-              <input type="radio" name="q5" value="StronglyDisagree" required> Strongly disagree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q5" value="Disagree"> Disagree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q5" value="Neither"> Neither agree nor disagree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q5" value="Agree"> Agree
-            </label>
-            <label class="radio-item">
-              <input type="radio" name="q5" value="StronglyAgree"> Strongly agree
-            </label>
-          </div>
-        </div>
-
-        <!-- question 6 -->
-        <div class="form-group" data-question-num="6">
-          <label class="form-label">6. Did the chat change how you perceived the agent? If yes, how?</label>
-          <input type="text" class="form-control" name="q6" placeholder="Insert your answer..." required>
-        </div>
-
-        <!-- question 7 -->
-        <div class="form-group" data-question-num="7">
-          <label class="form-label">7. If you could improve the agent or the chat, what would you change?</label>
-          <input type="text" class="form-control" name="q7" placeholder="Insert your answer..." required>
         </div>
 
         <!-- Submit button -->
-        <button type="submit" class="btn-cta">Submit Questionnaire</button>
+        <button type="submit" class="btn-cta">Submit Survey</button>
       </form>
       <!-- Status Message -->
       <div id="statusMessage" class="status-message"></div>
@@ -179,9 +134,59 @@
     const u = new URL(window.location.href);
     const pid = u.searchParams.get('pid') || '';
     const order = u.searchParams.get('order') || 'route1';
+    const surveyNum = parseInt('{{ n }}' || '1');
     const nextUrl = u.searchParams.get('next') || '/';
-    
+
+    // set title and subtitle
+    const titles = {
+      1: { title: "Survey 1", subtitle: "Thanks! Continue to the next block." },
+      2: { title: "Survey 2", subtitle: "Thanks! Continue to the next block." },
+      3: { title: "Survey 3", subtitle: "Short check-in before the final round." },
+      4: { title: "Survey 4", subtitle: "Final quick questions. Thanks for participating!" }
+    };
+
+    const surveyInfo = titles[surveyNum] || { title: "Survey", subtitle: "Please complete" };
+    document.getElementById('surveyTitle').textContent = surveyInfo.title;
+    document.getElementById('surveySubtitle').textContent = surveyInfo.subtitle;
     document.getElementById('pid').textContent = pid ? `Participant ID: ${pid}` : '';
+
+    console.log(`[Survey] Loading survey_${surveyNum} for ${order}`);
+
+    // visiility logic
+    const VISIBILITY = {
+      route1: {              // route1
+        1: [1, 2],           // survey 1: Q1, Q2
+        2: [1, 2, 3, 4],     // survey 2: Q1, Q2, Q3, Q4
+        3: [1, 2],           // survey 3: Q1, Q2
+        4: [1, 2, 3, 4]      // survey 4: Q1, Q2, Q3, Q4
+      },
+      route2: {              // route2
+        1: [1, 2, 3, 4],     // survey 1: Q1, Q2, Q3, Q4
+        2: [1, 2],           // survey 2: Q1, Q2
+        3: [1, 2, 3, 4],     // survey 3: Q1, Q2, Q3, Q4
+        4: [1, 2]            // survey 4: Q1, Q2
+      }
+    };
+
+    const visibleQuestions = VISIBILITY[order]?.[surveyNum] || [1, 2];
+
+    console.log(`[Survey] Show questions: ${visibleQuestions.join(', ')}`);
+
+    // Show/hide based on the list
+    document.querySelectorAll('[data-question-num]').forEach(q => {
+      const qNum = parseInt(q.getAttribute('data-question-num'));
+      
+      if (visibleQuestions.includes(qNum)) {
+        q.classList.remove('hidden');
+        // inputs required when visible
+        q.querySelectorAll('input').forEach(inp => inp.required = true);
+        console.log(`  Q${qNum}: VISIBLE`);
+      } else {
+        q.classList.add('hidden');
+        q.querySelectorAll('input').forEach(inp => inp.required = false);
+        console.log(`  Q${qNum}: HIDDEN`);
+      }
+    });
 
     function showMessage(message, type = 'info') {
       const el = document.getElementById('statusMessage');
@@ -200,7 +205,7 @@
 
         const result = await response.json();
         console.log('[API Response]:', result);
-        
+
         return result.status === 'ok';
       } catch (error) {
         console.error('[API Error]:', error);
@@ -212,30 +217,29 @@
     document.getElementById('surveyForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
-      // Collect form data
-      const formData = new FormData(this);
       const responses = {};
-      
-      for (let [key, value] of formData.entries()) {
-        responses[key] = value;
-      }
+      visibleQuestions.forEach(qNum => {
+        const input = document.querySelector(`input[name="q${qNum}"]`);
+        if (input && input.value) {
+          responses[`q${qNum}`] = input.value;
+        }
+      });
 
-      // Prepare payload
       const surveyData = {
         pid: pid,
         route: order,
-        survey_type: 'post_questionnaire',
+        survey_type: `survey_${surveyNum}`,
         responses: responses
       };
 
-      console.log('[Post-Questionnaire Submission]:', surveyData);
-      showMessage('Submitting post-questionnaire...', 'info');
+      console.log('[Survey Submission]:', surveyData);
+      showMessage('Submitting survey...', 'info');
 
       // Submit to backend
       const success = await submitSurveyData(surveyData);
 
       if (success) {
-        showMessage('Post-Questionnaire submitted! Redirecting...', 'success');
+        showMessage('Survey submitted! Redirecting...', 'success');
         document.getElementById('surveyForm').style.opacity = '0.5';
         document.getElementById('surveyForm').style.pointerEvents = 'none';
         
@@ -243,19 +247,17 @@
         window.location.href = nextUrl;
         }, 2000);
       } else {
-        showMessage('Failed to submit post-questionnaire. Please try again.', 'error');
+        showMessage('Failed to submit survey. Please try again.', 'error');
       }
     });
 
-    // Reliable shutdown: the user stays in the post-questionnaire for at least
-    // a few minutes so the socket will certainly have time to connect and send
-    // the 'agent:shutdown' to stop the gradle process.
+    // shutdown agent on survey page
     if (typeof io !== 'undefined') {
       const sock = io();
       
       sock.on('connect', function() {
-        console.log('[post-questionnaire] Socket connected - emitting agent:shutdown...');
-        sock.emit('agent:shutdown', { context: 'post-questionnaire-page' });
+        console.log(`[survey${surveyNum}] Socket connected - emitting agent:shutdown...`);
+        sock.emit('agent:shutdown', { context: `survey${surveyNum}-page` });
       });
 
       setTimeout(function() {

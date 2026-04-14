@@ -12,12 +12,11 @@ if os.getenv("FLASK_ENV", "production") == "production":
     eventlet.monkey_patch()
 
 import atexit
-import json
 import logging
+import csv
 
 # All other imports must come after patch to ensure eventlet compatibility
 # Standard Python libraries for storing data or concurrency
-import pickle
 import queue
 from datetime import datetime
 from threading import Lock
@@ -25,46 +24,14 @@ import time
 
 # Import custom modules from local files
 import game
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from game import Game, OvercookedGame, OvercookedTutorial
 from utils import ThreadSafeDict, ThreadSafeSet
 
 import subprocess
 
-import  csv, hashlib
-from flask import send_file
 
-###########################
-# Adding users to buckets #
-###########################
-BUCKET_FILE = os.path.join(os.path.dirname(__file__), "buckets.json")
-
-def _load_buckets():
-    if not os.path.exists(BUCKET_FILE):
-        return {"cramped_first": 0, "forced_first": 0}
-    with open(BUCKET_FILE, "r") as f:
-        try:
-            return json.load(f)
-        except Exception:
-            return {"cramped_first": 0, "forced_first": 0}
-
-def _save_buckets(b):
-    tmp = BUCKET_FILE + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(b, f)
-    os.replace(tmp, BUCKET_FILE)
-
-def assign_order_smaller_bucket():
-    buckets = _load_buckets()
-    # pick the smaller count (tie-break: cramped_first)
-    if buckets["cramped_first"] <= buckets["forced_first"]:
-        chosen = "cramped_first"
-    else:
-        chosen = "forced_first"
-    buckets[chosen] += 1
-    _save_buckets(buckets)
-    return chosen
 
 #################
 # Global Config #
@@ -77,14 +44,14 @@ with open(CONF_PATH, "r") as f:
     CONFIG = json.load(f)
 
 # Some important fields from config.json:
-LOGFILE = CONFIG["logfile"]                # Path to the file where errors are logged
-LAYOUTS = CONFIG["layouts"]                # List of layout names (like "you_shall_not_pass")
-LAYOUT_GLOBALS = CONFIG["layout_globals"]  # Shared parameters for onion/tomato times/values
+LOGFILE = CONFIG["logfile"]                 # Path to the file where errors are logged
+LAYOUTS = CONFIG["layouts"]                 # List of layout names (like "you_shall_not_pass")
+LAYOUT_GLOBALS = CONFIG["layout_globals"]   # Shared parameters for onion/tomato times/values
 MAX_GAME_LENGTH = CONFIG["MAX_GAME_LENGTH"] # Global limit on each game’s length (in seconds)
-MAX_GAMES = CONFIG["MAX_GAMES"]            # Maximum # of games that can exist at once
-MAX_FPS = CONFIG["MAX_FPS"]                # The server’s frames-per-second for broadcasting states
-PREDEFINED_CONFIG = json.dumps(CONFIG["predefined"])  # JSON that configures the /predefined page
-TUTORIAL_CONFIG = json.dumps(CONFIG["tutorial"])       # JSON that configures the /tutorial page
+MAX_GAMES = CONFIG["MAX_GAMES"]             # Maximum # of games that can exist at once
+MAX_FPS = CONFIG["MAX_FPS"]                 # The server’s frames-per-second for broadcasting states
+# PREDEFINED_CONFIG = json.dumps(CONFIG["predefined"])  # JSON that configures the /predefined page
+# TUTORIAL_CONFIG = json.dumps(CONFIG["tutorial"])      # JSON that configures the /tutorial page
 
 
 RESULTS_CSV = CONFIG.get("results_csv", "data/game_results.csv")
@@ -135,6 +102,57 @@ def _append_chat_row(row):
     _ensure_chat_header()
     with _chat_lock, open(CHAT_CSV, "a", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow(row)
+
+
+SURVEYS_CSV = CONFIG.get("surveys_csv", "data/survey_responses.csv")
+_surveys_lock = Lock()
+
+# Ensure folder exists
+os.makedirs(os.path.dirname(SURVEYS_CSV), exist_ok=True)
+
+def _ensure_surveys_header():
+    """Create surveys CSV file with header if missing/empty."""
+    if not os.path.exists(SURVEYS_CSV) or os.path.getsize(SURVEYS_CSV) == 0:
+        with open(SURVEYS_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "timestamp_utc",      # ISO8601 UTC time when submitted
+                "pid",                # Participant ID
+                "route",              # route1, route2
+                "survey_type",        # 'pre_questionnaire'|'survey_1'|'survey_2'|...|'post_questionnaire'
+                "question_key",       # Internal key (e.g., 'age_group', 'gender')
+                "answer_value"        # Raw answer value
+            ])
+
+def _append_survey_row(row):
+    """Append a single survey response row."""
+    _ensure_surveys_header()
+    with _surveys_lock, open(SURVEYS_CSV, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow(row)
+
+def _append_survey_responses(pid, route, survey_type, responses_dict):
+    """
+    Append all responses from a survey submission at once.
+    
+    Args:
+        pid: Participant ID
+        route: e.g., 'route1', 'route2'
+        survey_type: e.g., 'pre_questionnaire', 'survey_1'
+        responses_dict: Dict like {'q1': 'value', 'q2': 'text...'}
+    """
+    timestamp = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+    # Write all responses for this survey
+    for question_key, answer_value in responses_dict.items():
+        _append_survey_row([
+            timestamp,
+            pid,
+            route,
+            survey_type,
+            question_key,
+            str(answer_value)
+        ])
+
 
 # We keep track of "free" game IDs in a queue. Each game has a unique ID from 0..(MAX_GAMES-1).
 FREE_IDS = queue.Queue(maxsize=MAX_GAMES)
@@ -680,16 +698,62 @@ def survey_n(n):
     order = request.args.get('order', 'route1')
     next_url = request.args.get('next')
     
-    tmpl = f"survey{n}.html"
-    if not os.path.exists(os.path.join(app.template_folder or "templates", tmpl)):
-        abort(404)
-    
     return render_template(
-        tmpl, 
+        "survey.html",
+        n=n,
         pid=pid,
         order=order,
         next_url=next_url
     )
+
+# ── API: SURVEY SUBMISSION ───────────────────────────────────────────────
+
+@app.route("/api/survey/submit", methods=["POST"])
+def submit_survey():
+    """
+    API endpoint to receive and store survey responses from the frontend.
+    
+    Expected JSON payload:
+    {
+        "pid": "a1b2c3d4",
+        "route": "route1",
+        "survey_type": "pre_questionnaire",
+        "responses": {
+            "age_group": "18-24",
+            "...": "..."
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        pid = data.get("pid", "").strip()
+        route = data.get("route", "").strip()
+        survey_type = data.get("survey_type", "").strip()
+        responses = data.get("responses", {})
+        
+        if not pid or not survey_type or not responses:
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields: pid, route, survey_type, responses"
+            }), 400
+        
+        # Log all responses
+        _append_survey_responses(pid, route, survey_type, responses)
+        
+        print(f"[SURVEY] {survey_type} submitted for {pid} with {len(responses)} responses", file=sys.stderr)
+        
+        return jsonify({
+            "status": "ok",
+            "message": f"Survey '{survey_type}' saved successfully"
+        }), 200
+        
+    except Exception as e:
+        print(f"[SURVEY] Error: {e}", file=sys.stderr)
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 # ── CHAT-ROOM ───────────────────────────────────────────────────────────
 

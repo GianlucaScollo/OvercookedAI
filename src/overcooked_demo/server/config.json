@@ -2,6 +2,7 @@
     "logfile" : "app.log",
     "results_csv": "data/game_results.csv",
     "chat_csv": "data/chat_logs.csv",
+    "surveys_csv": "data/survey_responses.csv",
     "layouts" : ["cramped_new","cramped_room","asymmetric_advantages","coordination_ring","forced_coordination", "counter_circuit"],
     "MAX_GAMES" : 15,
     "MAX_GAME_LENGTH" : 360,
