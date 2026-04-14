@@ -21,7 +21,9 @@
     #chat-input { flex:1; border-radius:12px; border:1px solid rgba(255,255,255,.2); background:rgba(2,6,23,.45); color:var(--text); padding:10px 12px; min-height: 40px; }
     .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; white-space: nowrap; }
     .helper h5 { font-weight:700; margin-bottom:8px; }
-    .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); }
+    .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); cursor: pointer; transition: all 0.2s ease; width: 100%; text-align: left; }
+    .helper .cmd:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color: var(--text); }
+    .helper .cmd:active { transform: scale(0.98); }
     .footer-actions { text-align:right; margin-top: 12px; }
     .btn-next { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; }
     /* agent-status */
@@ -80,11 +82,11 @@
 
       <aside class="card-pane helper">
         <h5>If unsure, use the following commands</h5>
-        <div class="cmd">Command 1 — brief explanation.</div>
-        <div class="cmd">Command 2 — brief explanation.</div>
-        <div class="cmd">Command 3 — brief explanation.</div>
-        <div class="cmd">Command 4 — brief explanation.</div>
-        <div class="cmd">Command 5 — brief explanation.</div>
+        <button class="cmd" data-prompt="How do you know when the pot is ready">How do you know when the pot is ready</button>
+        <button class="cmd" data-prompt="How do you get a plate">How do you get a plate</button>
+        <button class="cmd" data-prompt="Test 1">Test 1</button>
+        <button class="cmd" data-prompt="Test 2">Test 2</button>
+        <button class="cmd" data-prompt="Test 3">Test 3</button>
       </aside>
     </div>
   </div>
@@ -107,6 +109,7 @@
     const contBtn = document.getElementById('continueBtn');
     const agentStatus = document.getElementById('agent-status');
     const typingIndicator = document.getElementById('typing-indicator');
+    const cmdButtons = document.querySelectorAll('.cmd');
 
 
     /**
@@ -307,6 +310,14 @@
         sendBtn.disabled = true;
       }
     }
+
+    cmdButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const promptText = this.getAttribute('data-prompt');
+        input.value = promptText;  // It will replace the text
+        input.focus();
+      });
+    });
 
     sendBtn.addEventListener('click', send);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
