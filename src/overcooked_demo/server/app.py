@@ -3,7 +3,7 @@ import sys
 import json, os, uuid
 from uuid import uuid4
 from flask import render_template, request, abort, redirect, url_for
-from urllib.parse import quote
+from urllib.parse import quote, urlparse, parse_qs
 
 # If FLASK_ENV=production, we use eventlet for concurrency and patch
 # standard Python libraries so they work well with green threads.
@@ -67,11 +67,13 @@ def _ensure_results_header():
         with open(RESULTS_CSV, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([
-                "timestamp_utc",   # ISO8601
-                "room_id",         # your room/session id
-                "layout",          # selected layout name
-                "score",           # final score
-                "duration_sec",    # seconds
+                "timestamp_utc",    # ISO8601 UTC time
+                "pid",              # Participant ID
+                "route",            # route1, route2
+                "game_id",          # room_id - your room/session id
+                "layout",           # selected layout name
+                "score",            # final score
+                "duration_sec",     # seconds
             ])
 
 def _append_result(row):
@@ -92,8 +94,10 @@ def _ensure_chat_header():
         with open(CHAT_CSV, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([
-                "timestamp_utc",   # ISO8601 UTC time when the server received the message
-                "room_id",         # the game room / session id
+                "timestamp_utc",   # ISO8601 UTC time
+                "pid",             # Participant ID
+                "route",           # route1, route2
+                "phase",           # 'pre_game' o 'post_game'
                 "sender",          # 'user' | 'agent' | other
                 "message"          # raw message text
             ])
@@ -435,6 +439,11 @@ def _create_game(user_id, game_name, params={}):
     spectating = True
 
 
+    # params used for logging
+    game.pid = params.get('pid', 'unknown')
+    game.route = params.get('route', 'unknown')
+
+
     with game.lock:
         if not game.is_full():
             # If the game isn’t full, this user can be a player
@@ -603,7 +612,7 @@ def enter():
     order = ROUTE
     return redirect(f'/next-step?pid={pid}&order={order}&step=0')
 
-# ── DOWNLOAD RESULTS/CHAT ─────────────────────────────────────────────────
+# ── DOWNLOAD RESULTS/CHAT/SURVEYS ──────────────────────────────────────────
 
 @app.route("/results.csv")
 def download_results():
@@ -614,6 +623,11 @@ def download_results():
 def download_chat():
     _ensure_chat_header()
     return send_file(CHAT_CSV, as_attachment=True, download_name="chat_logs.csv")
+
+@app.route("/surveys.csv")
+def download_surveys():
+    _ensure_surveys_header()
+    return send_file(SURVEYS_CSV, as_attachment=True, download_name="survey_responses.csv")
 
 # ── PRE/POST QUESTIONNAIRE ────────────────────────────────────────────────
 
@@ -801,7 +815,8 @@ def creation_params(params):
     # gameTime: time in seconds
     # dataCollection: on/off
     # layouts: [layout in the config file], this one determines which layout to use, and if there is more than one layout, a series of game is run back to back
-    
+    # pid: Partecipand ID used for dataCollection
+    # route: route1 or route2 used for dataCollection
     
 
     if "dataCollection" in params and params["dataCollection"] == "on":
@@ -1020,6 +1035,9 @@ def on_connect():
     USERS[user_id] = Lock()
 
 
+# Global variable to store room metadata (used when logging chat phase messages)
+CHAT_ROOM_METADATA = {}
+
 @socketio.on("chat:join")
 def on_chat_join(data):
     user_id = request.sid
@@ -1029,49 +1047,99 @@ def on_chat_join(data):
 
     try:
         with USERS[user_id]:
+            # Extract pid, route, and next_url from frontend
+            pid = (data or {}).get("pid", "")
+            order = (data or {}).get("order", "")
+            next_url = (data or {}).get("next_url", "")
             room = (data or {}).get("room", "lobby")
+
+            # Check if there is a PID so you know if it is the web client
+            if pid:
+                # Parse next_url to extract step_num to determine chat phase
+                # Format: /next-step?pid=XXX&order=route1&step=N
+                step_num = 0
+                if next_url:
+                    try:
+                        parsed = urlparse(next_url)
+                        query_params = parse_qs(parsed.query)
+                        step_num = int(query_params.get('step', ['0'])[0])
+                    except Exception as e:
+                        print(f"[chat:join] Error parsing next_url: {e}", file=sys.stderr)
+                        pass
+                
+                # Determine chat phase based on next step in the flow
+                chat_phase = 'unknown'
+                if step_num > 0 and order in ROUTE_FLOWS:
+                    flow = ROUTE_FLOWS.get(order)
+                    if (flow != None and step_num < len(flow)):
+                        next_phase = flow[step_num]
+                        if next_phase['type'] == 'game':
+                            chat_phase = 'pre_game'
+                        else:
+                            chat_phase = 'post_game'
+
+                # We save the metadata by tying it to the room.
+                CHAT_ROOM_METADATA[room] = {
+                    "pid": pid,
+                    "route": order,
+                    "chat_phase": chat_phase
+                }
+
             join_room(room)
             print(f"[CHAT] {user_id} joined room: {room}", file=sys.stderr)
-            emit("chat:joined", {"room": room})
+            emit("chat:joined", {"room": room})      
     except Exception as e:
-        print(f"[CHAT] on_chat_join fallback (no lock): {e}", file=sys.stderr)
+        print(f"[chat:join] Error: {e}", file=sys.stderr)
+        # Still join the room even on error
+        try:
+            room = (data or {}).get("room", "lobby")
+            join_room(room)
+            emit("chat:joined", {"room": room})
+        except:
+            pass
 
 
-# flag used to forward the KQML translation received from the interpreter to the web chat
+# DEBUG_KQML will be used for sending kqml messages to the front-end if its value is True (used by @socketio.on("chat:send"))
 DEBUG_KQML = os.getenv('DEBUG_KQML', 'false').lower() == 'true'
 
 @socketio.on("chat:send")
 def handle_chat_send(data):
-    message = (data or {}).get("message", "").strip()
-    if not message:
-        return
+    try:
+        message = (data or {}).get("message", "").strip()
+        if not message:
+            return
 
-    # Fallback: if not in a room, use their own session id (still logs, won't crash)
-    user_id = request.sid
-    room_id = get_curr_room(user_id)
-    if not room_id:
-        room_id = user_id
+        sender = (data or {}).get("sender", "").strip()
+        payload = {"sender": sender, "message": message}
+        room = (data or {}).get("room", "lobby")
+        
+        room_meta = CHAT_ROOM_METADATA.get(room, {})
+        pid = room_meta.get("pid", "")
+        route = room_meta.get("route", "")
+        chat_phase = room_meta.get("chat_phase", "")
+        
+        # check if the message is a KQML translation
+        is_kqml = "[kqml]" in message.lower()
 
-    sender = (data or {}).get("sender", "").strip()
-    payload = {"sender": sender, "message": message}
-
-    # check if the message is a KQML translation
-    is_kqml = "[kqml]" in message.lower()
-
-    if ((DEBUG_KQML) or (not is_kqml)):
-        # Broadcast of the message recevied
-        emit("chat:message", payload, broadcast=True, include_self=False)
-    else:
-        # In case DEBUG_KQML=False and the message is_kqml don't send it 
-        print(f"[CHAT:SEND] Filtered KQML (DEBUG_KQML=False): {message[:50]}...", file=sys.stderr)
-    
-    # Log it
-    _append_chat_row([
-        datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        room_id,
-        sender,
-        message
-    ])
+        if ((DEBUG_KQML) or (not is_kqml)):
+            # Broadcast of the message recevied
+            emit("chat:message", payload, broadcast=True, include_self=False)
+        else:
+            # In case DEBUG_KQML=False and the message is_kqml don't send it 
+            print(f"[CHAT:SEND] Filtered KQML (DEBUG_KQML=False): {message[:50]}...", file=sys.stderr)
+        
+        # Log it
+        _append_chat_row([
+            datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            pid,
+            route,
+            chat_phase,
+            sender,
+            message
+        ])
+        
+    except Exception as e:
+        print(f"[CHAT:SEND] Error: {e}", file=sys.stderr)
 
 
 ########################
@@ -1125,9 +1193,11 @@ def on_disconnect():
     If the client disconnects unexpectedly, we treat it the same as "leave".
     This ensures the server doesn’t keep them stuck in a game.
     """
-    print("disonnect triggered", file=sys.stderr)
-    # Ensure game data is properly cleaned-up in case of unexpected disconnect
+
     user_id = request.sid
+    print(f"[DISCONNECT] {user_id}", file=sys.stderr)
+
+    # Ensure game data is properly cleaned-up in case of unexpected disconnect
     if user_id not in USERS:
         return
     with USERS[user_id]:
@@ -1170,6 +1240,9 @@ def play_game(game: OvercookedGame, fps=6):
     Also sending "java_state_update" once every second so that the agent  can get an up to date information.
     """
     status = Game.Status.ACTIVE
+
+    pid = getattr(game, 'pid', 'unknown')
+    route = getattr(game, 'route', 'unknown')
 
     last_java_update = time.time()
     
@@ -1228,11 +1301,13 @@ def play_game(game: OvercookedGame, fps=6):
             final_score = getattr(game, "score", "")
             _append_result([
                 datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                pid,
+                route,
                 game.id,
                 layout_name,
                 final_score,
-                duration_sec,
-                ])
+                duration_sec
+            ])
         except Exception as e:
             app.logger.error(f"Failed to append game result for game {game.id}: {e}")
 

@@ -231,7 +231,14 @@
     // Check if agent is already running, or start it
     socket.on('connect', function() {
       console.log('[chat] Connected, joining lobby and checking agent...');
-      socket.emit('chat:join', { room: 'lobby' });
+      
+      // Emitting pid, order and nextUrl for logging
+      socket.emit('chat:join', { 
+        room: 'lobby',
+        pid: pid,
+        order: order,
+        next_url: nextUrl
+      });
 
       // Check if agent is already active to avoid redundant startup
       fetch('/agent/status')
