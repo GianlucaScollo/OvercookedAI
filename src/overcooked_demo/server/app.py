@@ -1128,6 +1128,8 @@ def handle_chat_send(data):
             # In case DEBUG_KQML=False and the message is_kqml don't send it 
             print(f"[CHAT:SEND] Filtered KQML (DEBUG_KQML=False): {message[:50]}...", file=sys.stderr)
         
+        csv_message = message.replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' ')
+
         # Log it
         _append_chat_row([
             datetime.utcnow().isoformat(timespec="seconds") + "Z",
@@ -1135,7 +1137,7 @@ def handle_chat_send(data):
             route,
             chat_phase,
             sender,
-            message
+            csv_message
         ])
         
     except Exception as e:

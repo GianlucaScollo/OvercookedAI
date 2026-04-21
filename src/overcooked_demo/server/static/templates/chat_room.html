@@ -35,7 +35,7 @@
     .typing-indicator.visible { display: block; }
     /* message base */
     .msg { margin-bottom: .75rem; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; gap: 4px; }
-    .msg-bubble { padding: 10px 12px; border-radius: 10px; word-wrap: break-word; overflow-wrap: break-word; width: fit-content; }
+    .msg-bubble { padding: 10px 12px; border-radius: 10px; word-wrap: break-word; overflow-wrap: break-word; width: fit-content; white-space: pre-wrap; }
     .msg-sender { font-weight: 700; font-size: 12px; color: var(--muted); padding: 0 2px; }
     /* user message - left side */
     .msg.user { align-items: flex-start; }
@@ -204,7 +204,7 @@
 
     let typingTimeout = null;
 
-    // Display typing indicator with 30-second auto-hide timeout
+    // Display typing indicator with 120-second auto-hide timeout
     // Called when user sends a message
     function showTyping() {
       typingIndicator.classList.add('visible');
@@ -214,7 +214,7 @@
         hideTyping();
         sendBtn.disabled = false;
         input.focus();
-      }, 30000);
+      }, 120000);
     }
 
     // Hide typing indicator and clear any pending timeout
