@@ -19,13 +19,17 @@
     #chat-box { height: 58vh; overflow-y:auto; background: rgba(2,6,23,.35); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: .75rem; }
     .input-row { display:flex; gap:10px; margin-top:10px; width: 100%; }
     #chat-input { flex:1; border-radius:12px; border:1px solid rgba(255,255,255,.2); background:rgba(2,6,23,.45); color:var(--text); padding:10px 12px; min-height: 40px; }
-    .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; white-space: nowrap; }
-    .helper h5 { font-weight:700; margin-bottom:8px; }
-    .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); cursor: pointer; transition: all 0.2s ease; width: 100%; text-align: left; }
-    .helper .cmd:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color: var(--text); }
-    .helper .cmd:active { transform: scale(0.98); }
     .footer-actions { text-align:right; margin-top: 12px; }
     .btn-next { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; }
+    .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; white-space: nowrap; }
+    /* Suggested commands */
+    .helper h5 { font-weight:700; margin-bottom:12px; }
+    .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); cursor: pointer; transition: all 0.2s ease; width: 100%; text-align: left; line-height: 1.2; }
+    .helper .cmd:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color: var(--text); }
+    .helper .cmd:active { transform: scale(0.98); }
+    .helper-section { margin-bottom: 20px; }
+    .helper-section h6 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--a1); margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; }
+    .card-pane.helper { padding: 15px; overflow-y: auto; max-height: 80vh; }
     /* agent-status */
     #agent-status { font-size:13px; color: var(--muted); margin-bottom: 10px; text-align: center; }
     #agent-status.ready { color: #4ade80; }
@@ -80,13 +84,11 @@
         </div>
       </div>
 
-      <aside class="card-pane helper">
-        <h5>If unsure, use the following commands</h5>
-        <button class="cmd" data-prompt="How do you know when the pot is ready?">How do you know when the pot is ready?</button>
-        <button class="cmd" data-prompt="How do you get a plate?">How do you get a plate?</button>
-        <button class="cmd" data-prompt="How do you discard a soup?">How do you discard a soup?</button>
-        <button class="cmd" data-prompt="How do you pass an ingredient to the human?">How do you pass an ingredient to the human?</button>
-        <button class="cmd" data-prompt="How do you turn to an object?">How do you turn to an object?</button>
+      <aside id="commands-container" class="card-pane helper">
+        <h5>Suggested Commands</h5>
+        <div id="commands-dynamic-list">
+            <p style="font-size: 12px; color: var(--muted);">Loading commands...</p>
+        </div>
       </aside>
     </div>
   </div>
@@ -99,6 +101,7 @@
     const pid = u.searchParams.get('pid') || '';
     const order = u.searchParams.get('order') || 'route1';
     const nextUrl = u.searchParams.get('next') || '/';
+    const currentPhase = u.searchParams.get('phase') || 'unknown';
 
     // Socket.IO client
     const socket = io()
@@ -237,7 +240,7 @@
         room: 'lobby',
         pid: pid,
         order: order,
-        next_url: nextUrl
+        phase: currentPhase
       });
 
       // Check if agent is already active to avoid redundant startup
@@ -247,12 +250,7 @@
           if (data.running) {
             // Agent already running: skip startup and enable UI
             console.log('[agent] Agent already running, skip start');
-            agentStatus.textContent = '🟢 Agent ready to chat!';
-            agentStatus.className = 'ready';
-            contBtn.disabled = false;
-            sendBtn.disabled = false;
-            handleMessage('system','Agent is ready! You can now send messages.');
-            input.focus();
+            setAgentReady();
           } else {
             // Agent not running: start it
             console.log('[agent] Starting agent...');
@@ -274,14 +272,16 @@
     });
 
     // Agent ready event: enable sending
-    socket.on('agent:chat_ready', function() {
-        agentStatus.textContent = '🟢 Agent ready to chat!';
-        agentStatus.className = 'ready';
-        contBtn.disabled = false;
-        sendBtn.disabled = false;
-        handleMessage('system','Agent is ready! You can now send messages.');
-        input.focus();
-    });
+    socket.on('agent:chat_ready', setAgentReady);
+
+    function setAgentReady() {
+      agentStatus.textContent = '🟢 Agent ready to chat!';
+      agentStatus.className = 'ready';
+      contBtn.disabled = false;
+      sendBtn.disabled = false;
+      handleMessage('system','Agent is ready! You can now send messages.');
+      input.focus();
+    }
 
     // Handle incoming messages from agent or system
     socket.on('chat:message', function(payload) {
@@ -318,13 +318,68 @@
       }
     }
 
-    cmdButtons.forEach(btn => {
-      btn.addEventListener('click', function() {
-        const promptText = this.getAttribute('data-prompt');
-        input.value = promptText;  // It will replace the text
-        input.focus();
-      });
-    });
+    // Asynchronously loads chat command suggestions from a JSON configuration file.
+    // Filters and renders commands based on the current phase (pre_game, post_game).
+    async function loadCommands() {
+      const container = document.getElementById('commands-dynamic-list');
+      try {
+        // Fetch the configuration file
+        const response = await fetch('/static/json/chat_commands.json');
+        const data = await response.json();
+        
+        // Check if the current phase is defined in the configuration.
+        if (currentPhase === 'unknown' || !data.phases[currentPhase]) {
+          console.warn("Phase unknown or not found in JSON, using default.");
+          container.innerHTML = '<p style="font-size:12px; color:var(--muted);">No suggestions available for this phase.</p>';
+          return;
+        }
+
+        // Retrieve the list of allowed categories for the current phase (e.g., ["Ask", "AskHow", "Tell"])
+        const allowedCategories = data.phases[currentPhase];
+
+        // Clear the loading placeholder
+        container.innerHTML = ''; 
+
+        // Iterate through each allowed category to build the UI sections
+        allowedCategories.forEach(category => {
+          // Filter the global command list to find prompts matching the current category
+          const prompts = data.commands
+            .filter(cmd => cmd.category === category)
+            .map(cmd => cmd.prompt);
+
+          // Only create a section if there are prompts available for this category
+          if (prompts.length > 0) {
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'helper-section';
+            // Set the category title (e.g., ASK, ASKHOW, Tell)
+            sectionDiv.innerHTML = `<h6>${category}</h6>`;
+
+            // Create a clickable button for each prompt
+            prompts.forEach(promptText => {
+              const btn = document.createElement('button');
+              btn.className = 'cmd';
+              btn.textContent = promptText;
+              
+              // When clicked, the prompt is copied into the chat input field
+              btn.addEventListener('click', () => {
+                input.value = promptText;
+                input.focus();
+              });
+              sectionDiv.appendChild(btn);
+            });
+            
+            // Append the completed section to the helper pane
+            container.appendChild(sectionDiv);
+          }
+        });
+      } catch (err) {
+        console.error("Error loading commands:", err);
+        container.innerHTML = '<p style="color:red">Error loading commands.</p>';
+      }
+    }
+
+    // Initialize the command helper as soon as the page script runs
+    loadCommands();
 
     sendBtn.addEventListener('click', send);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });

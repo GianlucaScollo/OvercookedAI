@@ -1,0 +1,15 @@
+{
+  "phases": {
+    "pre_game": ["Ask", "AskHow", "Tell"],
+    "post_game": ["Ask", "AskHow"]
+  },
+  "commands": [
+    { "category": "Ask", "prompt": "Hello" },
+    { "category": "AskHow", "prompt": "How do you know when the pot is ready?" },
+    { "category": "AskHow", "prompt": "How do you get a plate?" },
+    { "category": "AskHow", "prompt": "How do you discard a soup?" },
+    { "category": "AskHow", "prompt": "How do you turn to an object?" },
+    { "category": "Tell", "prompt": "I tell you to focus on cooking" },
+    { "category": "Tell", "prompt": "I tell you to focus on serving" }
+  ]
+}

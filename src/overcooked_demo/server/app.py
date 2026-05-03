@@ -3,7 +3,7 @@ import sys
 import json, os, uuid
 from uuid import uuid4
 from flask import render_template, request, abort, redirect, url_for
-from urllib.parse import quote, urlparse, parse_qs
+from urllib.parse import quote
 
 # If FLASK_ENV=production, we use eventlet for concurrency and patch
 # standard Python libraries so they work well with green threads.
@@ -491,15 +491,15 @@ ROUTE_FLOWS = {
         {'type': 'page', 'route': 'instructions', 'params': {}},
         {'type': 'game', 'layout': 'cramped_room', 'time': 60},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 1}},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'pre_game'}},
         {'type': 'game', 'layout': 'cramped_room', 'time': 60},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'post_game'}},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 2}},
         {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 3}},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'pre_game'}},
         {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'post_game'}},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 4}},
         {'type': 'page', 'route': 'post_questionnaire', 'params': {}},
         {'type': 'page', 'route': 'finish', 'params': {}},
@@ -507,15 +507,15 @@ ROUTE_FLOWS = {
     'route2': [
         {'type': 'page', 'route': 'pre_questionnaire', 'params': {}},
         {'type': 'page', 'route': 'instructions', 'params': {}},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'pre_game'}},
         {'type': 'game', 'layout': 'cramped_room', 'time': 60},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'post_game'}},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 1}},
         {'type': 'game', 'layout': 'cramped_room', 'time': 60},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 2}},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'pre_game'}},
         {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
-        {'type': 'chat', 'params': {}},
+        {'type': 'chat', 'params': {'phase': 'post_game'}},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 3}},
         {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
         {'type': 'page', 'route': 'survey_n', 'params': {'n': 4}},
@@ -589,7 +589,8 @@ def next_step():
         return redirect(f'/play/{layout}?time={time}&next={next_url_encoded}&pid={pid}&order={order}')
     
     elif current['type'] == 'chat':
-        return redirect(f'/chat-room?next={next_url_encoded}&pid={pid}&order={order}')
+        phase = current['params'].get('phase', 'unknown')
+        return redirect(f'/chat-room?next={next_url_encoded}&pid={pid}&order={order}&phase={phase}')
     
     return redirect('/')
 
@@ -776,12 +777,14 @@ def chat_room():
     next_url = request.args.get("next", "/")
     pid = request.args.get('pid', '')
     order = request.args.get('order', 'route1')
+    phase = request.args.get('phase', 'unknown') 
     
     return render_template(
         "chat_room.html", 
         next_url=next_url, 
         pid=pid, 
-        order=order
+        order=order,
+        phase=phase
     )
 
 # ── AGENT STATUS ────────────────────────────────────────────────────────
@@ -1047,37 +1050,14 @@ def on_chat_join(data):
 
     try:
         with USERS[user_id]:
-            # Extract pid, route, and next_url from frontend
+            # Extract pid, route, and phase from frontend
             pid = (data or {}).get("pid", "")
             order = (data or {}).get("order", "")
-            next_url = (data or {}).get("next_url", "")
+            chat_phase = (data or {}).get("phase", "unknown")
             room = (data or {}).get("room", "lobby")
 
             # Check if there is a PID so you know if it is the web client
             if pid:
-                # Parse next_url to extract step_num to determine chat phase
-                # Format: /next-step?pid=XXX&order=route1&step=N
-                step_num = 0
-                if next_url:
-                    try:
-                        parsed = urlparse(next_url)
-                        query_params = parse_qs(parsed.query)
-                        step_num = int(query_params.get('step', ['0'])[0])
-                    except Exception as e:
-                        print(f"[chat:join] Error parsing next_url: {e}", file=sys.stderr)
-                        pass
-                
-                # Determine chat phase based on next step in the flow
-                chat_phase = 'unknown'
-                if step_num > 0 and order in ROUTE_FLOWS:
-                    flow = ROUTE_FLOWS.get(order)
-                    if (flow != None and step_num < len(flow)):
-                        next_phase = flow[step_num]
-                        if next_phase['type'] == 'game':
-                            chat_phase = 'pre_game'
-                        else:
-                            chat_phase = 'post_game'
-
                 # We save the metadata by tying it to the room.
                 CHAT_ROOM_METADATA[room] = {
                     "pid": pid,
