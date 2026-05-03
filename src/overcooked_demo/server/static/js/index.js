@@ -313,13 +313,13 @@ socket.on('end_lobby', function() {
  * Game Key Event Listener
  * -----------------------------------------------------------------------------
  * enable_key_listener / disable_key_listener let the user control a chef in-game
- * by sending "action" events to the server: LEFT/RIGHT/UP/DOWN/SPACE.
+ * by sending "action" events to the server: LEFT/RIGHT/UP/DOWN/SPACE or A/S/W/D/SPACE.
  * -----------------------------------------------------------------------------
  */
 
 /**
  * enable_key_listener():
- *   - Attach a keydown event that interprets arrow keys and spacebar
+ *   - Attach a keydown event that interprets arrow keys or wasd and spacebar
  *     and sends them to the server as actions.
  */
 
@@ -328,15 +328,19 @@ function enable_key_listener() {
         let action = 'STAY';
         switch (e.which) {
             case 37: // left arrow
+            case 65: // A key
                 action = 'LEFT';
                 break;
             case 38: // up arrow
+            case 87: // W key
                 action = 'UP';
                 break;
             case 39: // right arrow
+            case 68: // D key
                 action = 'RIGHT';
                 break;
             case 40: // down arrow
+            case 83: // S key
                 action = 'DOWN';
                 break;
             case 32: // space
