@@ -323,26 +323,30 @@
           continueBtn.style.display = 'none';
         }
 
-        // AUTO-JOIN
-        if (window.AUTO_JOIN) {
-          fetch('/agent/status')
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              if (data.running) {
-                window._agentReady = true;
-                console.log('[agent] Agent already active.');
-              }
+        // Check agent status
+        fetch('/agent/status')
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.running) {
+              window._agentReady = true;
+              console.log('[agent] Agent already active (checked on load).');
+            }
+            
+            // AUTO-JOIN
+            if (window.AUTO_JOIN) {
               withSocket(function (s) {
                 joinWhenReady(s, params(), 'auto-join');
               });
-            })
-            .catch(function () {
-              console.warn('[agent/status] Fetch failed → auto-join without status.');
+            }
+          })
+          .catch(function () {
+            console.warn('[agent/status] Fetch failed.');
+            if (window.AUTO_JOIN) {
               withSocket(function (s) {
                 joinWhenReady(s, params(), 'auto-join-fallback');
               });
-            });
-        }
+            }
+          });
       });
     </script>
   </body>
