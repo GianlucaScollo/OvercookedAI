@@ -71,7 +71,7 @@
         <div id="chat-box" aria-live="polite"></div>
 
         <!-- Typing indicator: shown when agent is responding -->
-        <div id="typing-indicator" class="typing-indicator">staychef is typing…</div>
+        <div id="typing-indicator" class="typing-indicator"></div>
 
         <!-- Message input section -->
         <div class="input-row">
@@ -210,8 +210,10 @@
     // Display typing indicator with 120-second auto-hide timeout
     // Called when user sends a message
     function showTyping() {
+      typingIndicator.textContent = "Sending…";
       typingIndicator.classList.add('visible');
       chatBox.scrollTop = chatBox.scrollHeight;
+
       if (typingTimeout) clearTimeout(typingTimeout);
       typingTimeout = setTimeout(function () {
         hideTyping();
@@ -220,8 +222,7 @@
       }, 120000);
     }
 
-    // Hide typing indicator and clear any pending timeout
-    // Called only when agent or error message arrives
+    // Hide typing indicator
     function hideTyping() {
       typingIndicator.classList.remove('visible');
       if (typingTimeout) {
@@ -302,6 +303,18 @@
 
       // Display the message
       handleMessage(sender, msg, msgType);
+    });
+
+    // Handle incoming ack messages from interpreter
+    socket.on('chat:ack', function(payload) {
+      if (payload.expects_reply === false) {
+        hideTyping();
+        sendBtn.disabled = false;
+        input.focus();
+        handleMessage('system', 'Staychef has processed the sent message.');
+      } else {
+        typingIndicator.textContent = "staychef is typing…";
+      }
     });
 
     // Handle user message submission (Enter key or Send button click)

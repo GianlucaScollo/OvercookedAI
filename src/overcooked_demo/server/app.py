@@ -1124,6 +1124,17 @@ def handle_chat_send(data):
         print(f"[CHAT:SEND] Error: {e}", file=sys.stderr)
 
 
+@socketio.on("chat:ack")
+def handle_chat_ack(data):
+    # Receives the Acknowledge from Interpreter.java and forwards it to the web client.
+    # Informs the client whether to expect a response or not based on the intent of the message.
+    try:
+        emit("chat:ack", data, broadcast=True, include_self=False)
+    except Exception as e:
+        print(f"[CHAT:ACK] Error: {e}", file=sys.stderr)
+
+
+
 ########################
 # Agent Event Handlers #
 ########################
