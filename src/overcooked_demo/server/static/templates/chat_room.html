@@ -20,8 +20,12 @@
     .input-row { display:flex; gap:10px; margin-top:10px; width: 100%; }
     #chat-input { flex:1; border-radius:12px; border:1px solid rgba(255,255,255,.2); background:rgba(2,6,23,.45); color:var(--text); padding:10px 12px; min-height: 40px; }
     .footer-actions { text-align:right; margin-top: 12px; }
-    .btn-next { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; }
-    .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; white-space: nowrap; }
+    /* Buttons Base & Transitions */
+    .btn-next, .btn-send { border:0; border-radius:12px; padding:10px 16px; font-weight:700; color:#081223; transition: all 0.3s ease; }
+    .btn-next { background:linear-gradient(90deg,var(--a1),var(--a2)); }
+    .btn-send { background:linear-gradient(90deg,var(--a1),var(--a2)); white-space: nowrap; }
+    /* Disabled States for both buttons */
+    .btn-send:disabled, .btn-next:disabled { background: #1e293b; color: #475569; opacity: 0.7; cursor: not-allowed; filter: grayscale(1); box-shadow: none; }
     /* Suggested commands */
     .helper h5 { font-weight:700; margin-bottom:12px; }
     .helper .cmd { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px; color:var(--muted); cursor: pointer; transition: all 0.2s ease; width: 100%; text-align: left; line-height: 1.2; }
@@ -217,8 +221,7 @@
       if (typingTimeout) clearTimeout(typingTimeout);
       typingTimeout = setTimeout(function () {
         hideTyping();
-        sendBtn.disabled = false;
-        input.focus();
+        enableUIBtn();
       }, 120000);
     }
 
@@ -229,6 +232,19 @@
         clearTimeout(typingTimeout);
         typingTimeout = null;
       }
+    }
+
+    // Disable UI Buttons
+    function disableUIBtn() {
+        sendBtn.disabled = true;
+        contBtn.disabled = true;
+    }
+
+    // Enable UI Buttons
+    function enableUIBtn() {
+        sendBtn.disabled = false;
+        contBtn.disabled = false;
+        input.focus();
     }
 
     // Handle initial connection to Socket.IO server
@@ -278,10 +294,8 @@
     function setAgentReady() {
       agentStatus.textContent = '🟢 Agent ready to chat!';
       agentStatus.className = 'ready';
-      contBtn.disabled = false;
-      sendBtn.disabled = false;
       handleMessage('system','Agent is ready! You can now send messages.');
-      input.focus();
+      enableUIBtn();
     }
 
     // Handle incoming messages from agent or system
@@ -296,8 +310,7 @@
       // Allow typing to persist through warnings and system messages
       if (msgType === 'agent' || msgType === 'error') {
         hideTyping();
-        sendBtn.disabled = false;
-        input.focus();
+        enableUIBtn();
       }
       // For warning/system/KQML: keep typing indicator visible
 
@@ -309,8 +322,7 @@
     socket.on('chat:ack', function(payload) {
       if (payload.expects_reply === false) {
         hideTyping();
-        sendBtn.disabled = false;
-        input.focus();
+        enableUIBtn();
         handleMessage('system', 'Staychef has processed the sent message.');
       } else {
         typingIndicator.textContent = "staychef is typing…";
@@ -324,10 +336,9 @@
       socket.emit('chat:send', {sender: 'user', message: msg});
       handleMessage('me', msg);
       input.value = '';
-      input.focus();
       if (agentStatus.classList.contains('ready')) {
         showTyping();
-        sendBtn.disabled = true;
+        disableUIBtn();
       }
     }
 
