@@ -487,39 +487,42 @@ ROUTE = os.getenv('ROUTE', 'route1')
 # Define the flow for each route
 ROUTE_FLOWS = {
     'route1': [
-        {'type': 'page', 'route': 'pre_questionnaire', 'params': {}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'pre_questionnaire'}},
         {'type': 'page', 'route': 'instructions', 'params': {}},
-        {'type': 'game', 'layout': 'cramped_room', 'time': 60},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 1}},
+        #{'type': 'game', 'layout': 'cramped_room', 'time': 60},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_1'}},
+        #{'type': 'chat', 'params': {'phase': 'pre_game'}},
+        #{'type': 'game', 'layout': 'cramped_room', 'time': 60},
+        #{'type': 'chat', 'params': {'phase': 'post_game'}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_2'}},
+        #{'type': 'game', 'layout': 'forced_coordination', 'time': 60},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_3'}},
+        #{'type': 'chat', 'params': {'phase': 'pre_game'}},
+        #{'type': 'game', 'layout': 'forced_coordination', 'time': 60},
+        #{'type': 'chat', 'params': {'phase': 'post_game'}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_4'}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'post_questionnaire'}},
         {'type': 'chat', 'params': {'phase': 'pre_game'}},
         {'type': 'game', 'layout': 'cramped_room', 'time': 60},
         {'type': 'chat', 'params': {'phase': 'post_game'}},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 2}},
-        {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 3}},
-        {'type': 'chat', 'params': {'phase': 'pre_game'}},
-        {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
-        {'type': 'chat', 'params': {'phase': 'post_game'}},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 4}},
-        {'type': 'page', 'route': 'post_questionnaire', 'params': {}},
         {'type': 'page', 'route': 'finish', 'params': {}},
     ],
     'route2': [
-        {'type': 'page', 'route': 'pre_questionnaire', 'params': {}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'pre_questionnaire'}},
         {'type': 'page', 'route': 'instructions', 'params': {}},
         {'type': 'chat', 'params': {'phase': 'pre_game'}},
         {'type': 'game', 'layout': 'cramped_room', 'time': 60},
         {'type': 'chat', 'params': {'phase': 'post_game'}},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 1}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_1'}},
         {'type': 'game', 'layout': 'cramped_room', 'time': 60},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 2}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_2'}},
         {'type': 'chat', 'params': {'phase': 'pre_game'}},
         {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
         {'type': 'chat', 'params': {'phase': 'post_game'}},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 3}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_3'}},
         {'type': 'game', 'layout': 'forced_coordination', 'time': 60},
-        {'type': 'page', 'route': 'survey_n', 'params': {'n': 4}},
-        {'type': 'page', 'route': 'post_questionnaire', 'params': {}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'survey_4'}},
+        {'type': 'page', 'route': 'survey-page', 'params': {'type': 'post_questionnaire'}},
         {'type': 'page', 'route': 'finish', 'params': {}},
     ]
 }
@@ -570,18 +573,14 @@ def next_step():
         route_name = current['route']
         
         if route_name == 'home':
-            return redirect('/')
-        elif route_name == 'pre_questionnaire':
-            return redirect(url_for('pre_questionnaire') + f'?pid={pid}&order={order}&next={next_url_encoded}')
+            return redirect('/')  
         elif route_name == 'instructions':
             return redirect(url_for('instructions') + f'?pid={pid}&order={order}&next={next_url_encoded}')
-        elif route_name == 'post_questionnaire':
-            return redirect(url_for('post_questionnaire') + f'?pid={pid}&order={order}&next={next_url_encoded}')
+        elif route_name == 'survey-page':
+            stype = current['params'].get('type', 'survey_n')
+            return redirect(url_for('survey_page') + f'?pid={pid}&order={order}&type={stype}&next={next_url_encoded}')
         elif route_name == 'finish':
             return redirect('/finish')
-        elif route_name == 'survey_n':
-            n = current['params'].get('n', 1)
-            return redirect(url_for('survey_n', n=n) + f'?pid={pid}&order={order}&next={next_url_encoded}')
     
     elif current['type'] == 'game':
         layout = current['layout']
@@ -629,34 +628,6 @@ def download_chat():
 def download_surveys():
     _ensure_surveys_header()
     return send_file(SURVEYS_CSV, as_attachment=True, download_name="survey_responses.csv")
-
-# ── PRE/POST QUESTIONNAIRE ────────────────────────────────────────────────
-
-@app.route("/pre-questionnaire")
-def pre_questionnaire():
-    pid = request.args.get('pid', '')
-    order = request.args.get('order', 'route1')
-    next_url = request.args.get('next', '/finish')
-    
-    return render_template(
-        "pre_questionnaire.html", 
-        pid=pid,
-        order=order,
-        next_url=next_url
-    )
-
-@app.route("/post-questionnaire")
-def post_questionnaire():
-    pid = request.args.get('pid', '')
-    order = request.args.get('order', 'route1')
-    next_url = request.args.get('next', '/finish')
-    
-    return render_template(
-        "post_questionnaire.html",
-        pid=pid,
-        order=order,
-        next_url=next_url
-    )
 
 # ── FINISH ───────────────────────────────────────────────────────────────
 
@@ -707,19 +678,20 @@ def play_locked(layout):
 
 # ── SURVEY ──────────────────────────────────────────────────────────────
 
-@app.route("/survey/<int:n>")
-def survey_n(n):
+@app.route("/survey-page")
+def survey_page():
+    survey_type = request.args.get('type', '')
     pid = request.args.get('pid', '')
     order = request.args.get('order', 'route1')
-    next_url = request.args.get('next')
+    next_url = request.args.get('next', '/')
     
     return render_template(
         "survey.html",
-        n=n,
+        survey_type=survey_type,
         pid=pid,
         order=order,
         next_url=next_url
-    )
+    )    
 
 # ── API: SURVEY SUBMISSION ───────────────────────────────────────────────
 

@@ -1,0 +1,109 @@
+{
+  "surveys": {
+    "pre_questionnaire": {
+      "title": "Pre-Questionnaire",
+      "subtitle": "Please complete this questionnaire before starting the demo.",
+      "questions": [
+        { "id": "q1", "type": "radio", "label": "1. What is your age group?", "options": ["18-24", "25-34", "35-44", "45-54", "55-64", "65+", "Prefer not to say"], "required": true },
+        { "id": "q2", "type": "radio", "label": "2. What is your gender?", "options": ["Woman", "Man", "Non-binary", "Prefer not to say"], "required": true },
+        { "id": "q3", "type": "radio", "label": "3. Are you a native speaker?", "options": ["Yes", "No"], "required": true },
+        { "id": "q4", "type": "radio", "label": "4. What is your English language level?", "options": ["Beginner", "Intermediate", "Advanced", "Native"], "required": true },
+        { "id": "q5", "type": "radio", "label": "5. How would you rate your video game skill level?", "options": ["Very poor", "Poor", "Acceptable", "Good", "Very good"], "required": true },
+        { "id": "q6", "type": "radio", "label": "6. How frequently do you play cooperative video games that require collaborative strategy?", "options": ["Never", "Rarely", "Occasionally", "Frequently", "Very frequently"], "required": true },
+        { "id": "q7", "type": "radio", "label": "7. Have you played the Overcooked! video game before?", "options": ["Yes", "No", "Have heard of it, but not played it"], "required": true }
+      ]
+    },
+    "post_questionnaire": {
+      "title": "Post-Questionnaire",
+      "subtitle": "Final feedback form.",
+      "questions": [
+        { "id": "q1", "type": "radio", "label": "1. Overall, the agent was an effective collaborator?", "options": ["Strongly Disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly Agree"], "required": true },
+        { "id": "q2", "type": "radio", "label": "2. Using the chat helped me understand the agent’s reasoning?", "options": ["Strongly Disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly Agree"], "required": true },
+        { "id": "q3", "type": "radio", "label": "3. Using the chat improved my collaboration with the agent?", "options": ["Strongly Disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly Agree"], "required": true },
+        { "id": "q4", "type": "radio", "label": "4. After using the chat, I felt I understood the agent better.", "options": ["Strongly Disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly Agree"], "required": true },
+        { "id": "q5", "type": "radio", "label": "5. I would prefer to play with the agent with the chat rather than without it", "options": ["Strongly Disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly Agree"], "required": true },
+        { "id": "q6", "type": "text", "label": "6. Did the chat change how you perceived the agent? If yes, how?", "required": true },
+        { "id": "q7", "type": "text", "label": "7. If you could improve the agent or the chat, what would you change?", "required": true }
+      ]
+    },
+    "survey_1": {
+        "title": "Survey 1",
+        "subtitle": "Thanks! Continue to the next block.",
+        "route1" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true }
+            ]
+        },
+        "route2" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true },
+                { "id": "q3", "type": "radio", "label": "3. How satisfied were you with the explanations given by the agent?", "options": ["Very dissatisfied", "Dissatisfied", "Neither satisfied nor dissatisfied", "Satisfied", "Very satisfied"], "required": true },
+                { "id": "q4", "type": "radio", "label": "4. How effective was the pre-game discussion of the cooperation strategies?", "options": ["Cooperation worsened", "Nothing changed", "Cooperation improved"], "required": true }
+            ]
+        }
+    },
+    "survey_2": {
+        "title": "Survey 2",
+        "subtitle": "How is it going?",
+        "route1" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true },
+                { "id": "q3", "type": "radio", "label": "3. How satisfied were you with the explanations given by the agent?", "options": ["Very dissatisfied", "Dissatisfied", "Neither satisfied nor dissatisfied", "Satisfied", "Very satisfied"], "required": true },
+                { "id": "q4", "type": "radio", "label": "4. How effective was the pre-game discussion of the cooperation strategies?", "options": ["Cooperation worsened", "Nothing changed", "Cooperation improved"], "required": true }
+            ]
+        },
+        "route2" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true }
+            ]
+        }
+    },
+    "survey_3": {
+        "title": "Survey 3",
+        "subtitle": "Short check-in before the final round.",
+        "route1" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true }
+            ]
+        },
+        "route2" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true },
+                { "id": "q3", "type": "radio", "label": "3. How satisfied were you with the explanations given by the agent?", "options": ["Very dissatisfied", "Dissatisfied", "Neither satisfied nor dissatisfied", "Satisfied", "Very satisfied"], "required": true },
+                { "id": "q4", "type": "radio", "label": "4. How effective was the pre-game discussion of the cooperation strategies?", "options": ["Cooperation worsened", "Nothing changed", "Cooperation improved"], "required": true }
+            ]
+        }
+    },
+    "survey_4": {
+        "title": "Survey 4",
+        "subtitle": "Final quick questions. Thanks for participating!",
+        "route1" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true },
+                { "id": "q3", "type": "radio", "label": "3. How satisfied were you with the explanations given by the agent?", "options": ["Very dissatisfied", "Dissatisfied", "Neither satisfied nor dissatisfied", "Satisfied", "Very satisfied"], "required": true },
+                { "id": "q4", "type": "radio", "label": "4. How effective was the pre-game discussion of the cooperation strategies?", "options": ["Cooperation worsened", "Nothing changed", "Cooperation improved"], "required": true }
+            ]
+        },
+        "route2" : {
+            "questions": [
+                { "id": "q1", "type": "radio", "label": "1. How well did the agent collaborate with you?", "options": ["Very badly", "Badly", "Average", "Well", "Very well"], "required": true },
+                { "id": "q2", "type": "radio", "label": "2. Who do you think was the better collaborator?", "options": ["Me", "The agent", "Both"], "required": true }
+            ]
+        }
+    },
+    "template_of_questions": {
+        "questions": [
+            {"id": "text", "type": "text", "label": "label of text question", "required": false },
+            {"id": "radio", "type": "radio", "label": "label of radio question", "options": ["opt1", "opt2", "..."], "required": false },
+            {"id": "checkbox", "type": "checkbox", "label": "label of checkbox question", "options": ["opt1", "opt2", "..."], "required": false }
+        ]
+    }
+  }
+}
