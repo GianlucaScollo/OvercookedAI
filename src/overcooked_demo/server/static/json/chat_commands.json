@@ -1,23 +1,23 @@
 {
   "phases": {
-    "pre_game": ["Ask", "AskHow", "Tell"],
+    "pre_game": ["AskHow", "Tell"],
     "post_game": ["Ask", "AskHow"]
   },
   "commands": [
-    { "category": "Ask", "prompt": "Hello chef, are there any recipes we need to do?" },
-    { "category": "Ask", "prompt": "Can you use the pot right now?" },
-    { "category": "Ask", "prompt": "What is the count of onions in the recipe?" },
-    { "category": "Ask", "prompt": "Are there any possible counters between us?" },
-    
+    { "category": "Ask", "prompt": "How many soups did you serve during the shift?" },
+    { "category": "Ask", "prompt": "How many times have you grabbed ingredients in the game?" },
+    { "category": "Ask", "prompt": "How many ingredients have you passed to me?" },
+
+    { "category": "AskHow", "prompt": "How do you know when the pot is ready?" },
+    { "category": "AskHow", "prompt": "How do you choose a pot for a recipe?" },
     { "category": "AskHow", "prompt": "How do you figure out if a counter is shared between us?" },
     { "category": "AskHow", "prompt": "How do you decide what to do if you can only reach the ingredients?" },
     { "category": "AskHow", "prompt": "How do you decide what to do if you can only reach plates and pots?" },
-    { "category": "AskHow", "prompt": "How do you choose a pot for a recipe?" },
+    { "category": "AskHow", "prompt": "How do you handle a wrong soup that needs to be discarded?" },
 
     { "category": "Tell", "prompt": "Chef, I need you to focus on cooking right now." },
     { "category": "Tell", "prompt": "Please focus on serving, I will handle the rest." },
     { "category": "Tell", "prompt": "Leave the kitchen to me, you should ignore cooking for a while." },
-    { "category": "Tell", "prompt": "Don't worry about it, ignore serving for now." },
-    { "category": "Tell", "prompt": "I tell you to focus on serving" }
+    { "category": "Tell", "prompt": "Don't worry about it, ignore serving for now." }
   ]
 }
