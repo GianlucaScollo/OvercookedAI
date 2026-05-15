@@ -37,8 +37,10 @@ This repository contains the **Overcooked-AI** benchmark environment in which a 
 ### Required on the host (LLM / chat features)
 You must have **Ollama installed and running on your host machine** (outside Docker), because the system connects to it at runtime. So, install **Ollama** (https://ollama.com/) and pull the required models.
 
-Model identifiers are configured in `kitchen.mas2j` (Symbolic agent configuration):
+### Ollama model identifiers (Symbolic agent)
+Model identifiers are configured in `kitchen.mas2j` **inside the `SymbolicAIAgent` repository** (Jason agent configuration).
 
+In particular, the following parameters are used:
 - `gen_model = "qwen2.5-coder"`
 - `emb_model = "all-minilm"`
 
@@ -50,6 +52,18 @@ ollama pull all-minilm
 Make sure Ollama is running (e.g., run `ollama serve` if it’s not already running).
 
 > If your installed model names include tags (e.g. `:latest`, `:7b`, …), update `kitchen.mas2j` accordingly.
+
+#### Note about changing models / parameters
+This repo automatically fetches the agent repository at Docker build time (via `git clone` in `src/overcooked_demo/server/Dockerfile`).
+Therefore, if you change agent parameters (e.g. `kitchen.mas2j`), you typically:
+- apply the change in **your own fork / modified copy** of `SymbolicAIAgent` (commit + push there), then
+- update the `git clone` URL in the Dockerfile to point to your fork (or otherwise ensure it clones the modified repository), and/or set the correct `AGENT_BRANCH`,
+- rebuild/restart the containers so the updated agent code is fetched and used.
+
+Example (Dockerfile):
+```dockerfile
+RUN git clone https://github.com/<your-username>/SymbolicAIAgent.git --branch $AGENT_BRANCH --single-branch /app/SymbolicAIAgent
+```
 
 ---
 
@@ -80,6 +94,60 @@ Make sure Ollama is running (e.g., run `ollama serve` if it’s not already runn
 Open your browser at: http://localhost
 
 > When the match starts (or when the chat phase is triggered), the symbolic agent is started automatically.
+
+---
+
+## Changing the experiment flow (route) and the game map
+
+The demo/experiment flow is controlled by:
+1) an environment variable `ROUTE` in `src/overcooked_demo/docker-compose.yml`, and  
+2) the `ROUTE_FLOWS` configuration in `src/overcooked_demo/server/app.py`.
+
+> Note: in the backend code and URLs, the route value is often referred to as `order` (e.g., `order=route1`). It corresponds to the `ROUTE` environment variable.
+
+### 1) Select which route flow to run (ROUTE)
+
+In `src/overcooked_demo/docker-compose.yml` you can choose the flow variant by setting `ROUTE`:
+
+```yaml
+environment:
+  # ...
+  ROUTE: "route1"  # or "route2" <- flag to select flow variant (route1, route2, etc.)
+```
+
+The Flask server reads it at startup (default: `route1`) and uses it as the initial route:
+
+```python
+ROUTE = os.getenv('ROUTE', 'route1')
+```
+
+### 2) Change the sequence of steps (ROUTE_FLOWS)
+
+In `src/overcooked_demo/server/app.py`, the `ROUTE_FLOWS` dictionary defines the steps for each route (pages, chat phases, games).
+
+A game step looks like:
+
+```python
+{'type': 'game', 'layout': 'cramped_room', 'time': 60},
+```
+
+You can edit:
+- `layout`: the map/layout name
+- `time`: match duration in seconds
+
+### 3) Available layouts (maps)
+
+Valid layout names are listed in `src/overcooked_demo/server/config.json` under the `layouts` field, for example:
+
+```json
+"layouts": ["cramped_new", "cramped_room", "asymmetric_advantages", "coordination_ring", "forced_coordination", "counter_circuit"]
+```
+
+Choose one of those strings and set it as the `layout` value in the desired `{'type': 'game', ...}` step.
+
+> Note (VS Code / saving): after editing `docker-compose.yml`, `app.py`, or `config.json`, make sure the files are saved (e.g., `Ctrl+S`) before restarting containers.
+> If you tend to forget saving changes, you can enable Auto Save in VS Code (File → Auto Save).
+> After changing `ROUTE`, `ROUTE_FLOWS`, or the configuration, restart/rebuild the containers as needed (e.g. `./down.sh && ./up.sh`) so the running server uses the updated settings.
 
 ---
 
