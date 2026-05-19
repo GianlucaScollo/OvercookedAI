@@ -1,6 +1,26 @@
 # version : '3.9'
 
 services:
+    # ollama service
+    # Runs the LLM server locally inside Docker, removing the need for host installation.
+    ollama:
+        image: ollama/ollama:latest
+        ports:
+            - "11434:11434"
+        volumes:
+            - ollama_data:/root/.ollama
+        # This command starts the server and pulls the required models in the background
+        # if they are not already present in the volume.
+        entrypoint: >
+            /bin/sh -c "
+            ollama serve & 
+            sleep 5 && 
+            ollama pull qwen2.5-coder && 
+            ollama pull all-minilm && 
+            wait
+            "
+
+    # main application service        
     app:
         build:
             context: ./server
@@ -10,19 +30,19 @@ services:
                 GRAPHICS: "${GRAPHICS:-overcooked_graphics_v2.2.js}"
                 AGENT_BRANCH: "${AGENT_BRANCH:-master}"
             shm_size: "5gb"
+        depends_on:
+            - ollama
         shm_size: "5gb"
         environment: 
             FLASK_ENV: "${BUILD_ENV:-production}"
             SYMBOLIC_AGENT_DIR: "/app/SymbolicAIAgent"
-            OLLAMA_HOST: "http://host.docker.internal:11434"
+            OLLAMA_HOST: "http://ollama:11434"
             DEBUG_KQML: "true"  # or "false" # <- flag to enable debug logging of KQML messages from the symbolic agent (during chat phase)
             ROUTE: "route1"  # or "route2" <- flag to select flow variant (route1, route2, etc.)
         ports:
             - "80:5000"
-        extra_hosts:
-            - "host.docker.internal:host-gateway"
         volumes:
             - data:/app/data
 volumes:
   data:
-        
+  ollama_data: # Persists the downloaded LLM models so they are not fetched on every restart

@@ -32,38 +32,7 @@ This repository contains the **Overcooked-AI** benchmark environment in which a 
 - **Git Bash** (set as your default terminal, e.g. in VS Code, if using Windows)
 - A web browser (Chrome, Firefox, Edge)
 
-> Dependency installation happens inside the Docker image build steps (Dockerfile(s) used by `docker-compose`).
-
-### Required on the host (LLM / chat features)
-You must have **Ollama installed and running on your host machine** (outside Docker), because the system connects to it at runtime. So, install **Ollama** (https://ollama.com/) and pull the required models.
-
-### Ollama model identifiers (Symbolic agent)
-Model identifiers are configured in `kitchen.mas2j` **inside the `SymbolicAIAgent` repository** (Jason agent configuration).
-
-In particular, the following parameters are used:
-- `gen_model = "qwen2.5-coder"`
-- `emb_model = "all-minilm"`
-
-Ollama setup:
-```bash
-ollama pull qwen2.5-coder
-ollama pull all-minilm
-```
-Make sure Ollama is running (e.g., run `ollama serve` if it’s not already running).
-
-> If your installed model names include tags (e.g. `:latest`, `:7b`, …), update `kitchen.mas2j` accordingly.
-
-#### Note about changing models / parameters
-This repo automatically fetches the agent repository at Docker build time (via `git clone` in `src/overcooked_demo/server/Dockerfile`).
-Therefore, if you change agent parameters (e.g. `kitchen.mas2j`), you typically:
-- apply the change in **your own fork / modified copy** of `SymbolicAIAgent` (commit + push there), then
-- update the `git clone` URL in the Dockerfile to point to your fork (or otherwise ensure it clones the modified repository), and/or set the correct `AGENT_BRANCH`,
-- rebuild/restart the containers so the updated agent code is fetched and used.
-
-Example (Dockerfile):
-```dockerfile
-RUN git clone https://github.com/<your-username>/SymbolicAIAgent.git --branch $AGENT_BRANCH --single-branch /app/SymbolicAIAgent
-```
+> **No host dependencies required:** You do NOT need to install Ollama or Python on your physical machine. Everything, including the LLM backend, is fully containerized and will be downloaded automatically by Docker.
 
 ---
 
@@ -75,17 +44,25 @@ RUN git clone https://github.com/<your-username>/SymbolicAIAgent.git --branch $A
    cd src/overcooked_demo
    ```
 
-2. **Build the Docker images and start the Flask server**
+2. **Build the Docker images and start the system**
    ```bash
    ./up.sh
    ```
 
-3. **Wait until the Docker images are built and the server is running.**
+3. **FIRST RUN ONLY: Wait for the LLM models to download!**  
+   Upon the first execution, the `ollama` Docker container will silently download the AI models (`qwen2.5-coder` and `all-minilm`) in the background. Since these files are several gigabytes in size, **this process might take several minutes** depending on your internet connection. 
+   
+   To check the download progress in real-time, run:
+   ```bash
+   docker-compose logs -f ollama
+   ```
+   *When you see `success` for both models in the logs, the environment is fully ready.*
 
 4. **Stop the containers when you are done**
    ```bash
    ./down.sh
    ```
+   *Note: Downloaded models are safely stored in a Docker volume and will NOT be re-downloaded on future runs.*
 
 ---
 
@@ -94,6 +71,40 @@ RUN git clone https://github.com/<your-username>/SymbolicAIAgent.git --branch $A
 Open your browser at: http://localhost
 
 > When the match starts (or when the chat phase is triggered), the symbolic agent is started automatically.
+
+---
+
+## Changing AI Models
+
+If you want to change the LLM models used by the agent, you must update the configuration in **two different places**:
+
+1. **Update the Docker environment:**  
+   Open `src/overcooked_demo/docker-compose.yml` and change the models in the `entrypoint` script of the `ollama` service:
+   ```yaml
+   ollama pull <new-generation-model> && 
+   ollama pull <new-embedding-model> && 
+   ```
+
+2. **Update the Agent Configuration:**  
+   In your fork of the `SymbolicAIAgent` repository, modify the `kitchen.mas2j` file:
+   ```plaintext
+   gen_model = "<new-generation-model>",
+   emb_model = "<new-embedding-model>"
+   ```
+
+Once both are updated, run `./down.sh` followed by `./up.sh` to apply the changes.
+
+#### Note about changing models / parameters for SymbolicAIAgent
+This repo automatically fetches the agent repository at Docker build time (via `git clone` in `src/overcooked_demo/server/Dockerfile`).
+Therefore, if you change agent parameters (e.g. `kitchen.mas2j`), you typically:
+- apply the change in **your own fork / modified copy** of `SymbolicAIAgent` (commit + push there), then
+- update the `git clone` URL in the Dockerfile to point to your fork (or otherwise ensure it clones the modified repository), and/or set the correct `AGENT_BRANCH`,
+- rebuild/restart the containers so the updated agent code is fetched and used.
+
+Example (Dockerfile):
+```dockerfile
+RUN git clone https://github.com/<your-username>/SymbolicAIAgent.git --branch $AGENT_BRANCH --single-branch /app/SymbolicAIAgent
+```
 
 ---
 
@@ -180,13 +191,14 @@ The agent repository is placed inside the container so it can be started when ne
 
 ## Troubleshooting
 
-- **Chat/LLM features not working**
-  - Verify Ollama is running on the host.
-  - Verify the models configured in `kitchen.mas2j` exist in your local Ollama installation.
-  - Verify the container can reach Ollama at `http://host.docker.internal:11434` (or via `OLLAMA_HOST`).
-- **Agent does not start**
+- **Agent does not respond or chat fails on first launch:**
+  - The Ollama models might still be downloading in the background. Check the download progress using `docker-compose logs -f ollama`.
+  - Ensure you haven't manually stopped the `ollama` container.
+- **Agent does not start:**
   - Verify `SYMBOLIC_AGENT_DIR` points to the actual location of `SymbolicAIAgent` inside the container.
-  - Rebuild the Docker images (`./down.sh && ./up.sh prod`)
+  - Rebuild the Docker images (`./down.sh && ./up.sh`)
+- **Port conflicts (Address already in use):**
+  - If the `docker-compose up` command fails with an error about port `11434` or `5000` already being in use, ensure you don't have a local instance of Ollama running on your host machine (quit the desktop app) or another Flask server occupying port 5000.
 
 ---
 
