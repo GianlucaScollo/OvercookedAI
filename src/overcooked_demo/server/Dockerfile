@@ -21,7 +21,7 @@ RUN git clone --recursive https://github.com/margaritaradeva/OvercookedAIGameLog
 RUN echo "import os; DATA_DIR=os.path.abspath('.')" >>/OvercookedAIGameLogic/src/human_aware_rl/data_dir.py
 
 # Install chai dependencies
-RUN pip install -e '/OvercookedAIGameLogic[harl]'
+RUN pip install --default-timeout=2000 -e '/OvercookedAIGameLogic[harl]'
 
 RUN apt-get -y update && apt-get install -y \
     libgl1-mesa-dev \
