@@ -9,24 +9,37 @@
   <link rel="stylesheet"
         href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
         crossorigin="anonymous">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 
   <style>
-    :root { --bg1:#0f172a; --bg2:#1e293b; --accent:#22d3ee; --accent2:#a78bfa; --text:#e2e8f0; --muted:#94a3b8; --glass:rgba(255,255,255,.06); --glass-brd:rgba(255,255,255,.12); }
-    html, body { height:100%; background:linear-gradient(135deg,var(--bg1),var(--bg2)); color:var(--text); font-family:'Inter',system-ui,sans-serif; }
-    .hero { min-height:100vh; display:grid; place-items:center; position:relative; overflow:hidden; padding:2rem; }
-    .orb { position:absolute; border-radius:9999px; filter:blur(60px); opacity:.35; pointer-events:none; animation:float 18s ease-in-out infinite; }
-    .orb.a { width:420px; height:420px; background:radial-gradient(circle,var(--accent),transparent 60%); top:-80px; left:-60px; }
-    .orb.b { width:520px; height:520px; background:radial-gradient(circle,var(--accent2),transparent 60%); bottom:-120px; right:-100px; animation-delay:6s; }
-    @keyframes float { 0%,100%{transform:translateY(0) translateX(0)} 50%{transform:translateY(18px) translateX(10px)} }
-    .card-glass { width:min(720px,92vw); border-radius:20px; padding:28px; background:linear-gradient(180deg,var(--glass),rgba(255,255,255,.02)); border:1px solid var(--glass-brd); box-shadow:0 30px 60px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05); backdrop-filter:blur(14px); }
-    .title { font-weight:800; font-size:clamp(28px,4.2vw,44px); line-height:1.1; letter-spacing:-.02em; background:linear-gradient(90deg,var(--text),#fff); -webkit-background-clip:text; background-clip:text; color:transparent; text-align:center; margin-bottom:8px; }
-    .subtitle { text-align:center; color:var(--muted); font-size:15px; margin-bottom:22px; }
-    .consent-area { background:rgba(2,6,23,.35); border:1px dashed rgba(148,163,184,.35); border-radius:16px; padding:16px; margin-top:10px; }
-    .btn-cta { display:inline-flex; align-items:center; justify-content:center; gap:10px; width:100%; height:54px; border-radius:14px; border:0; color:#0b1220; font-weight:700; letter-spacing:.2px; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:transform .08s ease, box-shadow .2s ease, opacity .2s ease; box-shadow:0 10px 30px rgba(34,211,238,.25); }
-    .btn-cta:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
-    .btn-cta:not(:disabled):hover { transform:translateY(-1px); box-shadow:0 16px 40px rgba(167,139,250,.28); }
-    .footer-note { text-align:center; color:var(--muted); font-size:12px; margin-top:14px; }
+    :root { --bg1: #0f172a; --bg2: #1e293b; --accent: #22d3ee; --accent2: #a78bfa; --text: #e2e8f0; --muted: #94a3b8; --glass: rgba(255,255,255,.06); --glass-brd: rgba(255,255,255,.12); }
+    html, body { min-height: 100vh; margin: 0; background: linear-gradient(135deg, var(--bg1), var(--bg2)); background-attachment: fixed; color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+    .hero { min-height: 100vh; display: grid; place-items: center; position: relative; overflow: hidden; padding: 2rem; }    
+    .orb { position: absolute; border-radius: 9999px; filter: blur(60px); opacity: .35; pointer-events: none; animation: float 18s ease-in-out infinite; }
+    .orb.a { width: 420px; height: 420px; background: radial-gradient(circle, var(--accent), transparent 60%); top: -80px; left: -60px; }
+    .orb.b { width: 520px; height: 520px; background: radial-gradient(circle, var(--accent2), transparent 60%); bottom: -120px; right: -100px; animation-delay: 6s; }
+    @keyframes float { 0%, 100% { transform: translateY(0) translateX(0) } 50% { transform: translateY(18px) translateX(10px) } }
+    .card-glass { width: min(900px, 95vw); border-radius: 20px; padding: 32px; background: linear-gradient(180deg, var(--glass), rgba(255,255,255,.02)); border: 1px solid var(--glass-brd); box-shadow: 0 30px 60px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05); backdrop-filter: blur(14px); }
+    .title { font-weight: 800; font-size: clamp(28px, 4.2vw, 44px); line-height: 1.1; letter-spacing: -.02em; background: linear-gradient(90deg, var(--text), #fff); -webkit-background-clip: text; background-clip: text; color: transparent; text-align: center; margin-bottom: 8px; }
+    .subtitle { text-align: center; color: var(--muted); font-size: 15px; margin-bottom: 22px; }
+    .document-box { background: #ffffff; color: #1e293b; border-radius: 12px; padding: 24px 32px; margin-bottom: 24px; max-height: 50vh; overflow-y: auto; box-shadow: inset 0 2px 10px rgba(0,0,0,0.05); font-size: 15px; line-height: 1.6; }
+    .document-box::-webkit-scrollbar { width: 8px; }
+    .document-box::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+    .document-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .document-box::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .doc-title-1 { font-size: 1.1rem; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .doc-title-2 { font-size: 1.35rem; text-align: center; color: #0f172a; }
+    .doc-subtitle { font-size: 0.95rem; text-align: center; color: #64748b; margin-bottom: 24px; }  
+    .document-box a { color: #2563eb; text-decoration: underline; font-weight: 500; }
+    .document-box p { margin-bottom: 16px; }
+    .document-box ul { margin-bottom: 16px; padding-left: 24px; }
+    .document-box li { margin-bottom: 8px; }
+    .consent-area { background: rgba(2,6,23,.35); border: 1px dashed rgba(148,163,184,.4); border-radius: 12px; padding: 18px; margin-bottom: 20px; } 
+    .consent-label { font-size: 14px; line-height: 1.5; color: var(--text); cursor: pointer; }
+    .btn-cta { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 54px; border-radius: 14px; border: 0; color: #0b1220; font-weight: 700; letter-spacing: .2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: transform .08s ease, box-shadow .2s ease, opacity .2s ease; box-shadow: 0 10px 30px rgba(34,211,238,.25); }
+    .btn-cta:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+    .btn-cta:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 16px 40px rgba(167,139,250,.28); }
+    .footer-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 14px; }
   </style>
 </head>
 <body>
@@ -38,11 +51,93 @@
       <h1 class="title">Human-AI Cooperation</h1>
       <p class="subtitle">Welcome! Before entering, please confirm your consent.</p>
 
+      <!-- White Box -->
+      <div class="document-box">
+        <div class="doc-title-1">Participant Information Sheet and Consent Form</div>
+        <div class="doc-title-2">Collaborative Agents with LLM-based Dialogue for Human-AI Teamwork</div>
+        <div class="doc-subtitle">Worktribe ethics application ID 8349664</div>
+
+        <p>
+          The aim of this research is to address a key research gap by evaluating a symbolic Artificial
+          Intelligence agent’s performance in cooperative tasks with humans, specifically within the
+          Overcooked-AI game environment. We also investigate whether incorporating dialogue interaction
+          through a chat can improve a user&#39;s collaborative experience. The research is conducted by Rafael C.
+          Cardoso from the University of Aberdeen, Arabella Sinclair from University College London, Angelo
+          Ferrando and Gianluca Scollo from the University of Modena-Reggio Emilia, and Andrea Gatti and
+          Viviana Mascardi from the University of Genoa. The results of this research will be used for a peer-
+          reviewed open access publication which will be made accessible through principal investigator’s
+          website at <a href="https://www.abdn.ac.uk/people/rafael.cardoso#publications">https://www.abdn.ac.uk/people/rafael.cardoso#publications</a>.
+          We appreciate your interest in participating in this study. We would like to invite you to take part if
+          you are over 18 and under 60 years of age. Please take some time to read the following information
+          carefully before agreeing to participate (if you wish to) by ticking the consent boxes at the bottom of
+          this page. Your participation in the survey is entirely <strong>voluntary</strong>, and you can opt out at any stage by
+          closing and exiting the browser.
+        </p>
+        
+        <p> 
+          If you decide to take part, you will be asked to play multiple games with an AI agent collaborator at
+          different levels of complexity, and then answer questions about your experience. After accepting
+          taking part in the study, you will answer an initial pre-questionnaire with some general purpose
+          questions: age group and sex (both with options for participants who prefer not to say), if you are
+          native English speaker or not, as well as some questions related to your past experience with
+          videogames and cooperative games. You will then read the instructions and play two games in two
+          different layouts (for a total of four games), with each game lasting 60 seconds. There will be
+          questions in between games, and a chat feature where you will be able to communicate with the AI
+          agent. A final questionnaire will be shown at the end of the study. We will collect the chat history,
+          questionnaire answers, and game metrics (score, etc.). No identifiable data will be collected at any
+          point of the study. Your answers will help us to shape the design of future collaborative AI agents, as
+          well as form a proof of concept for Large Language Models interfaces with AI agents. The study
+          should take approximately 20 to 40 minutes to complete. Please be aware that after completing the
+          study, you will not be able to withdraw your data. 
+        </p>
+        
+        <p>
+          Your answers will be treated confidentially and the information you provide will remain anonymous
+          in any scholarly outputs. All data generated by the study will be securely stored at the University of
+          Aberdeen and retained in accordance with the University of Aberdeen Research Data Management
+          Policy for 5 years after the project end date. Your data can only be accessed by the principal
+          investigator. You can also consult the 
+          <a href="https://www.abdn.ac.uk/about/your-privacy/research-participants/">University’s Privacy Notice</a> 
+          for Research Participants for further information on how we manage your data.
+        </p>
+        
+        <p>
+          The research has been approved by the Physical Sciences &amp; Engineering Ethics Board, University of
+          Aberdeen on the 20 May 2026. If you have any concerns about the way in which the study has been
+          conducted, you can contact the Convener of the Physical Sciences &amp; Engineering Ethics Board, at
+          <a href="copsethics@abdn.ac.uk">copsethics@abdn.ac.uk</a>.
+        </p>
+
+        <br>
+        <p>For further information, or if you have any queries, please contact the principal investigator.</p>
+
+        <p>
+          <strong>Name:</strong> Rafael C. Cardoso <br>
+          <strong>E-mail:</strong> rafael.cardoso@abdn.ac.uk <br>
+          <strong>Telephone:</strong> +44 (0)1224 272292
+        </p>
+
+        <br>
+        <p>
+          Please read the statements below carefully and tick the box to confirm you have read and
+          understood each statement and agree to participate in the project. By clicking “Continue” you
+          will then be given access to the study.
+        </p>
+
+        <ul>
+          <li>I confirm that I am 18 years of age or over, and that I am under 60 years of age.</li>
+          <li>I agree to have my data securely collected, stored, and processed as part of this research under the conditions outlined in the participant information above.</li>
+          <li>I agree to my anonymous data being used for publications and other scholarly means of disseminating the findings from the research project.</li>
+          <li>I agree to my anonymised data being used in future studies of the principal investigator without my further permission.</li>
+          <li>I understand that the University may publish appropriately anonymised data in appropriate data repositories for verification purposes and to make it accessible to researchers and other research users.</li>
+        </ul>
+      </div>
+
       <div class="consent-area">
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" value="agree" id="consentCheck">
-          <label class="form-check-label" for="consentCheck">
-            I have read and agree with the consent form provided to me.
+        <div class="form-check d-flex align-items-start">
+          <input class="form-check-input mt-1 mr-2" type="checkbox" value="agree" id="consentCheck">
+          <label class="form-check-label consent-label" for="consentCheck">
+            I confirm that I have read and understood the above statements and I consent to take part in the research study Collaborative Agents with LLM-based Dialogue for Human-AI Teamwork under the outlined conditions (tick the box).
           </label>
         </div>
       </div>
