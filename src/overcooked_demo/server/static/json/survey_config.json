@@ -4,7 +4,7 @@
       "title": "Pre-Questionnaire",
       "subtitle": "Please complete this questionnaire before starting the demo.",
       "questions": [
-        { "id": "q1", "type": "radio", "label": "1. What is your age group?", "options": ["18-24", "25-34", "35-44", "45-54", "55-64", "65+", "Prefer not to say"], "required": true },
+        { "id": "q1", "type": "radio", "label": "1. What is your age group?", "options": ["18-24", "25-34", "35-44", "45-54", "55-60", "Prefer not to say"], "required": true },
         { "id": "q2", "type": "radio", "label": "2. What is your gender?", "options": ["Woman", "Man", "Non-binary", "Prefer not to say"], "required": true },
         { "id": "q3", "type": "radio", "label": "3. Are you a native English speaker?", "options": ["Yes", "No"], "required": true },
         { "id": "q4", "type": "radio", "label": "4. What is your English language level?", "options": ["Beginner", "Intermediate", "Advanced", "Native"], "required": true },
