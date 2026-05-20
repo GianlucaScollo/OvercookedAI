@@ -211,7 +211,7 @@
 
     let typingTimeout = null;
 
-    // Display typing indicator with 120-second auto-hide timeout
+    // Display typing indicator with 200-second auto-hide timeout
     // Called when user sends a message
     function showTyping() {
       typingIndicator.textContent = "Sending…";
@@ -222,7 +222,7 @@
       typingTimeout = setTimeout(function () {
         hideTyping();
         enableUIBtn();
-      }, 120000);
+      }, 200000);
     }
 
     // Hide typing indicator
