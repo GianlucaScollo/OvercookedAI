@@ -197,8 +197,8 @@ The agent repository is placed inside the container so it can be started when ne
 - **Agent does not start:**
   - Verify `SYMBOLIC_AGENT_DIR` points to the actual location of `SymbolicAIAgent` inside the container.
   - Rebuild the Docker images (`./down.sh && ./up.sh`)
-- **Port conflicts (Address already in use):**
-  - If the `docker-compose up` command fails with an error about port `11434` or `5000` already being in use, ensure you don't have a local instance of Ollama running on your host machine (quit the desktop app) or another Flask server occupying port 5000.
+- **Port conflicts:**
+  - If the `docker-compose up` command fails with a port conflict error, ensure you don't have another web server running on port 80 or 5000, and optionally check if a local installation of Ollama is interfering on port 11434.
 
 ---
 
